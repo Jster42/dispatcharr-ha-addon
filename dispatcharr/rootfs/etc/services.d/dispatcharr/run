@@ -7,18 +7,32 @@ export DISPATCHARR_ENV="${DISPATCHARR_ENV:-aio}"
 # Verify Gunicorn will bind to the correct port for Ingress
 export GUNICORN_PORT=9191
 
-# Use the actual entrypoint from the container (as shown in Portainer)
-# The dev image uses /app/docker/entrypoint.sh as the entrypoint
-if [ -f /app/docker/entrypoint.sh ]; then
-    echo "Starting Dispatcharr with /app/docker/entrypoint.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
-    exec /app/docker/entrypoint.sh
-elif [ -f /entrypoint.aio.sh ]; then
+# Debug: List all possible entrypoint locations
+echo "=== Searching for entrypoint scripts ===" >&2
+for ep in /entrypoint.aio.sh /entrypoint.sh /app/docker/entrypoint.sh /docker-entrypoint.sh; do
+    if [ -f "$ep" ]; then
+        echo "Found: $ep" >&2
+        ls -la "$ep" >&2
+    fi
+done
+
+# Priority order: entrypoint.aio.sh (dev branch aio mode) > entrypoint.sh > /app/docker/entrypoint.sh
+# entrypoint.aio.sh should be the correct one for dev branch with aio mode
+if [ -f /entrypoint.aio.sh ]; then
     echo "Starting Dispatcharr with /entrypoint.aio.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
     exec /entrypoint.aio.sh
 elif [ -f /entrypoint.sh ]; then
-    echo "Starting Dispatcharr with /entrypoint.sh" >&2
+    echo "Starting Dispatcharr with /entrypoint.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
     exec /entrypoint.sh
+elif [ -f /app/docker/entrypoint.sh ]; then
+    echo "Starting Dispatcharr with /app/docker/entrypoint.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
+    exec /app/docker/entrypoint.sh
 else
-    echo "ERROR: No entrypoint script found (/app/docker/entrypoint.sh, /entrypoint.aio.sh, or /entrypoint.sh)" >&2
+    echo "ERROR: No entrypoint script found. Checked:" >&2
+    echo "  - /entrypoint.aio.sh" >&2
+    echo "  - /entrypoint.sh" >&2
+    echo "  - /app/docker/entrypoint.sh" >&2
+    echo "Available files in /app/docker/:" >&2
+    ls -la /app/docker/ 2>&1 || true
     exit 1
 fi
