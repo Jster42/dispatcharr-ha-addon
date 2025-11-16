@@ -104,6 +104,25 @@ if [ -f /app/docker/entrypoint.sh ]; then
                 HTTP_TEST=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 --connect-timeout 5 http://localhost:$DISPATCHARR_PORT/ 2>&1 || echo "FAILED")
                 if [ "$HTTP_TEST" = "200" ] || [ "$HTTP_TEST" = "301" ] || [ "$HTTP_TEST" = "302" ] || [ "$HTTP_TEST" = "404" ]; then
                     echo "✅ Nginx is responding to HTTP requests (HTTP $HTTP_TEST)" >&2
+                    
+                    # Check response headers for potential issues
+                    echo "Checking response headers..." >&2
+                    CONTENT_LENGTH=$(curl -s -I --max-time 10 http://localhost:$DISPATCHARR_PORT/ 2>/dev/null | grep -i "content-length:" | sed 's/.*: *//' | tr -d '\r' || echo "")
+                    ACTUAL_SIZE=$(curl -s --max-time 10 http://localhost:$DISPATCHARR_PORT/ 2>/dev/null | wc -c || echo "0")
+                    
+                    if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" != "0" ]; then
+                        echo "  Content-Length header: $CONTENT_LENGTH bytes" >&2
+                        echo "  Actual response size: $ACTUAL_SIZE bytes" >&2
+                        if [ "$CONTENT_LENGTH" != "$ACTUAL_SIZE" ]; then
+                            echo "  ⚠️ Warning: Content-Length mismatch! This could cause Ingress issues." >&2
+                        fi
+                    fi
+                    
+                    # Check for Transfer-Encoding chunked (can cause issues with some proxies)
+                    TRANSFER_ENCODING=$(curl -s -I --max-time 10 http://localhost:$DISPATCHARR_PORT/ 2>/dev/null | grep -i "transfer-encoding:" || echo "")
+                    if [ -n "$TRANSFER_ENCODING" ]; then
+                        echo "  Transfer-Encoding: $TRANSFER_ENCODING" >&2
+                    fi
                 elif [ "$HTTP_TEST" = "000" ] || [ "$HTTP_TEST" = "FAILED" ]; then
                     echo "⚠️ Warning: Nginx is not responding to HTTP requests" >&2
                     echo "  This could indicate:" >&2
