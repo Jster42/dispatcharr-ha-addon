@@ -4,7 +4,8 @@ FROM ghcr.io/dispatcharr/dispatcharr:dev
 COPY rootfs/ /
 
 # Override the base image's ENTRYPOINT to let s6 manage the service
-# The run script in /etc/services.d/dispatcharr/run will call the entrypoint
-ENTRYPOINT []
+# Home Assistant uses s6 as init system, which will execute /etc/services.d/dispatcharr/run
+# Our run script will then call the entrypoint with proper environment variables
+ENTRYPOINT ["/init"]
 
 EXPOSE 9191
