@@ -31,6 +31,18 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
     
+    # Ensure X-Ingress-Path header is passed through to application
+    # Home Assistant sends this header to indicate the base URL path for Ingress
+    # This helps applications handle relative paths correctly
+    if ! grep -q "X-Ingress-Path" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Adding X-Ingress-Path header passthrough for Ingress compatibility..." >&2
+        # Add X-Ingress-Path after X-Forwarded-Port
+        sed -i.bak '/proxy_set_header X-Forwarded-Port/a\
+    proxy_set_header X-Ingress-Path $http_x_ingress_path;
+' "$NGINX_TEMPLATE" 2>/dev/null || true
+        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    fi
+    
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
 fi
 
