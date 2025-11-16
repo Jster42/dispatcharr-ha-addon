@@ -8,27 +8,29 @@ export DISPATCHARR_LOG_LEVEL=info
 # Set port for Ingress - nginx will listen on this port
 export DISPATCHARR_PORT=9191
 
-# Patch nginx config template BEFORE entrypoint runs
-# The entrypoint's init script (03-init-dispatcharr.sh) replaces NGINX_PORT with DISPATCHARR_PORT
-# But it creates "listen 9191;" instead of "listen 0.0.0.0:9191;"
-# We need to ensure the template has 0.0.0.0 binding for Ingress compatibility
-NGINX_TEMPLATE="/etc/nginx/sites-enabled/default"
-if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/dev/null; then
-    echo "Patching nginx template to use 0.0.0.0 binding for Ingress..." >&2
-    # Replace "listen NGINX_PORT;" with "listen 0.0.0.0:NGINX_PORT;"
-    # The init script will then replace NGINX_PORT with 9191, resulting in "listen 0.0.0.0:9191;"
-    sed -i.bak "s/listen[[:space:]]*NGINX_PORT;/listen 0.0.0.0:NGINX_PORT;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
-    sed -i.bak "s/listen[[:space:]]*NGINX_PORT[[:space:]]*default_server;/listen 0.0.0.0:NGINX_PORT default_server;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+    # Patch nginx config template BEFORE entrypoint runs
+    # The entrypoint's init script (03-init-dispatcharr.sh) replaces NGINX_PORT with DISPATCHARR_PORT
+    # But it creates "listen 9191;" instead of "listen 0.0.0.0:9191;"
+    # We need to ensure the template has 0.0.0.0 binding for Ingress compatibility
+    NGINX_TEMPLATE="/etc/nginx/sites-enabled/default"
+    
+    # Clean up any existing .bak files first
     rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    
+    if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Patching nginx template to use 0.0.0.0 binding for Ingress..." >&2
+        # Replace "listen NGINX_PORT;" with "listen 0.0.0.0:NGINX_PORT;"
+        # The init script will then replace NGINX_PORT with 9191, resulting in "listen 0.0.0.0:9191;"
+        sed -i "s/listen[[:space:]]*NGINX_PORT;/listen 0.0.0.0:NGINX_PORT;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        sed -i "s/listen[[:space:]]*NGINX_PORT[[:space:]]*default_server;/listen 0.0.0.0:NGINX_PORT default_server;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
     
     # Also increase uWSGI timeouts for Ingress compatibility
     # Ingress requests may take longer due to proxy layers
     if grep -q "uwsgi_read_timeout" "$NGINX_TEMPLATE" 2>/dev/null; then
         echo "Increasing uWSGI timeouts for Ingress compatibility..." >&2
-        sed -i.bak "s/uwsgi_read_timeout[[:space:]]*[0-9]*;/uwsgi_read_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
-        sed -i.bak "s/uwsgi_send_timeout[[:space:]]*[0-9]*;/uwsgi_send_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
-        sed -i.bak "s/uwsgi_connect_timeout[[:space:]]*[0-9]*;/uwsgi_connect_timeout 75;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
-        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+        sed -i "s/uwsgi_read_timeout[[:space:]]*[0-9]*;/uwsgi_read_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        sed -i "s/uwsgi_send_timeout[[:space:]]*[0-9]*;/uwsgi_send_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        sed -i "s/uwsgi_connect_timeout[[:space:]]*[0-9]*;/uwsgi_connect_timeout 75;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
     fi
     
     # Ensure X-Ingress-Path header is passed through to application
@@ -37,10 +39,9 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
     if ! grep -q "X-Ingress-Path" "$NGINX_TEMPLATE" 2>/dev/null; then
         echo "Adding X-Ingress-Path header passthrough for Ingress compatibility..." >&2
         # Add X-Ingress-Path after X-Forwarded-Port
-        sed -i.bak '/proxy_set_header X-Forwarded-Port/a\
+        sed -i '/proxy_set_header X-Forwarded-Port/a\
     proxy_set_header X-Ingress-Path $http_x_ingress_path;
 ' "$NGINX_TEMPLATE" 2>/dev/null || true
-        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
     
     # Ensure keep-alive is enabled for Ingress compatibility
@@ -48,25 +49,25 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
     if ! grep -q "keepalive_timeout" "$NGINX_TEMPLATE" 2>/dev/null && ! grep -q "keepalive_timeout" /etc/nginx/nginx.conf 2>/dev/null; then
         echo "Adding keep-alive settings for Ingress compatibility..." >&2
         # Add keepalive settings in the server block
-        sed -i.bak '/server {/a\
+        sed -i '/server {/a\
     keepalive_timeout 65;
     keepalive_requests 100;
 ' "$NGINX_TEMPLATE" 2>/dev/null || true
-        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
     
     # Disable uwsgi buffering for Ingress to ensure full response is sent
     # Access logs show 396 bytes but actual response is 772 bytes - response is being truncated
     # This prevents responses from being truncated by uwsgi buffering
-    if ! grep -q "uwsgi_buffering" "$NGINX_TEMPLATE" 2>/dev/null; then
+    # Only add to the FIRST location / block (not duplicates)
+    if ! grep -q "uwsgi_buffering off" "$NGINX_TEMPLATE" 2>/dev/null; then
         echo "Disabling uwsgi buffering for Ingress compatibility..." >&2
-        # Add uwsgi_buffering off right after uwsgi_pass in the location / block
-        # Use a more specific pattern to insert after uwsgi_pass
-        sed -i.bak '/uwsgi_pass unix:\/app\/uwsgi.sock;/a\
+        # Add uwsgi_buffering off right after uwsgi_pass in the FIRST location / block only
+        # Use a more specific pattern and only match the first occurrence
+        sed -i '0,/uwsgi_pass unix:\/app\/uwsgi.sock;/{
+            /uwsgi_pass unix:\/app\/uwsgi.sock;/a\
         uwsgi_buffering off;
         uwsgi_request_buffering off;
-' "$NGINX_TEMPLATE" 2>/dev/null || true
-        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+        }' "$NGINX_TEMPLATE" 2>/dev/null || true
         echo "uwsgi_buffering settings added" >&2
     else
         echo "uwsgi_buffering settings already present" >&2
