@@ -1,5 +1,5 @@
 name: Dispatcharr
-version: "0.1.0"
+version: "1.0.0-dev"
 slug: dispatcharr
 description: IPTV companion (EPG, channels, plugins) wrapped for Home Assistant
 arch:
