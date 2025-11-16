@@ -17,21 +17,46 @@ fi
 
 case "$METHOD" in
     ssh)
-        HOST="${2:-}"
-        SSH_USER="${3:-hassio}"
-        SSH_KEY="${4:-}"
+        HOST="${2:-${SSH_HOST:-}}"
+        SSH_USER="${3:-${SSH_USER:-hassio}}"
+        SSH_KEY="${4:-${SSH_KEY:-}}"
+        SSH_PASSWORD="${SSH_PASSWORD:-}"
         
         if [ -z "$HOST" ]; then
             echo "Usage: $0 ssh <host> [user] [ssh_key]"
+            echo "   OR: Set SSH_HOST, SSH_USER, SSH_KEY, SSH_PASSWORD in .env file"
+            echo ""
             echo "Default user: hassio"
             echo "Example: $0 ssh homeassistant.local"
+            echo ""
+            echo ".env file format:"
+            echo "  SSH_HOST=homeassistant.local"
+            echo "  SSH_USER=hassio"
+            echo "  SSH_PASSWORD=your_password"
+            echo "  SSH_KEY=~/.ssh/id_rsa  # optional, if using key auth"
             exit 1
         fi
         
-        SSH_CMD="ssh"
+        # Check if we need password authentication
+        if [ -n "$SSH_PASSWORD" ]; then
+            if command -v sshpass >/dev/null 2>&1; then
+                SSH_CMD="sshpass -p '$SSH_PASSWORD' ssh"
+                echo "Using password authentication (via sshpass)"
+            else
+                echo "Warning: sshpass not installed. Install with: brew install hudochenkov/sshpass/sshpass"
+                echo "Falling back to interactive password prompt..."
+                SSH_CMD="ssh"
+            fi
+        else
+            SSH_CMD="ssh"
+        fi
+        
         if [ -n "$SSH_KEY" ]; then
             SSH_CMD="$SSH_CMD -i $SSH_KEY"
         fi
+        
+        # Add options to avoid host key checking issues
+        SSH_CMD="$SSH_CMD -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
         SSH_CMD="$SSH_CMD $SSH_USER@$HOST"
         
         echo "=== Debugging Ingress on $HOST ==="
