@@ -71,6 +71,23 @@ if [ -f /app/docker/entrypoint.sh ]; then
                 fi
             fi
             
+            # Verify uwsgi_buffering is disabled (critical for Ingress)
+            if ! grep -q "uwsgi_buffering off" "$nginx_conf" 2>/dev/null; then
+                echo "⚠️ Warning: uwsgi_buffering not disabled, adding now..." >&2
+                # Add uwsgi_buffering off after uwsgi_pass
+                sed -i.bak '/uwsgi_pass unix:\/app\/uwsgi.sock;/a\
+        uwsgi_buffering off;
+        uwsgi_request_buffering off;
+' "$nginx_conf" 2>/dev/null || true
+                rm -f "${nginx_conf}.bak" 2>/dev/null || true
+                
+                # Reload nginx to apply buffering changes
+                if command -v nginx >/dev/null 2>&1 && pgrep nginx >/dev/null 2>&1; then
+                    echo "Reloading nginx to apply uwsgi_buffering changes" >&2
+                    nginx -s reload 2>/dev/null || true
+                fi
+            fi
+            
             # Verify nginx is actually listening on the correct port
             sleep 3
             echo "Verifying nginx configuration..." >&2

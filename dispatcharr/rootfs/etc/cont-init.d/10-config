@@ -58,14 +58,18 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
     # Disable uwsgi buffering for Ingress to ensure full response is sent
     # Access logs show 396 bytes but actual response is 772 bytes - response is being truncated
     # This prevents responses from being truncated by uwsgi buffering
-    if ! grep -q "uwsgi_buffering off" "$NGINX_TEMPLATE" 2>/dev/null; then
+    if ! grep -q "uwsgi_buffering" "$NGINX_TEMPLATE" 2>/dev/null; then
         echo "Disabling uwsgi buffering for Ingress compatibility..." >&2
-        # Add uwsgi_buffering off in the location / block
-        sed -i.bak '/location \/ {/a\
+        # Add uwsgi_buffering off right after uwsgi_pass in the location / block
+        # Use a more specific pattern to insert after uwsgi_pass
+        sed -i.bak '/uwsgi_pass unix:\/app\/uwsgi.sock;/a\
         uwsgi_buffering off;
         uwsgi_request_buffering off;
 ' "$NGINX_TEMPLATE" 2>/dev/null || true
         rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+        echo "uwsgi_buffering settings added" >&2
+    else
+        echo "uwsgi_buffering settings already present" >&2
     fi
     
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
