@@ -1,4 +1,12 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
-# Use the upstream entrypoint - this works locally on dev image
-exec /entrypoint.sh
+# Use the upstream entrypoint.aio.sh from dev branch (starts Redis, Celery, Gunicorn)
+# Try entrypoint.aio.sh first (dev branch), then fallback to entrypoint.sh
+if [ -f /entrypoint.aio.sh ]; then
+    exec /entrypoint.aio.sh
+elif [ -f /entrypoint.sh ]; then
+    exec /entrypoint.sh
+else
+    echo "ERROR: No entrypoint script found (/entrypoint.aio.sh or /entrypoint.sh)" >&2
+    exit 1
+fi

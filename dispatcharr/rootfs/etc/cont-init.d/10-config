@@ -2,6 +2,10 @@
 set -euo pipefail
 CONFIG=/data/options.json
 
+# Set base environment (matching docker-compose.aio.yml from dev branch)
+export DISPATCHARR_ENV=aio
+export DISPATCHARR_LOG_LEVEL=info
+
 if [ -f "$CONFIG" ]; then
   USERNAME=$(jq -r '.username' "$CONFIG")
   PASSWORD=$(jq -r '.password // empty' "$CONFIG")
@@ -10,9 +14,11 @@ if [ -f "$CONFIG" ]; then
   export DISPATCHARR_USERNAME="$USERNAME"
   export DISPATCHARR_PASSWORD="$PASSWORD"
   export DISPATCHARR_EPG_URL="$EPG_URL"
-  export TZ="$TZ_OPT"
+  export TZ="${TZ_OPT:-UTC}"
   # Persist a simple env file (optional)
   cat > /data/dispatcharr.env <<EOF
+DISPATCHARR_ENV=aio
+DISPATCHARR_LOG_LEVEL=info
 DISPATCHARR_USERNAME=$DISPATCHARR_USERNAME
 DISPATCHARR_PASSWORD=$DISPATCHARR_PASSWORD
 DISPATCHARR_EPG_URL=$DISPATCHARR_EPG_URL
