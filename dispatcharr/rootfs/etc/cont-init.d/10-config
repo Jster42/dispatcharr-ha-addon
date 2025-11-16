@@ -82,10 +82,20 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         sed -i '/uwsgi_request_buffering off;/a\
         sendfile off;
         tcp_nopush off;
+        tcp_nodelay on;
 ' "$NGINX_TEMPLATE" 2>/dev/null || true
         echo "sendfile settings added" >&2
     else
         echo "sendfile settings already present" >&2
+    fi
+    
+    # Force immediate response sending for Ingress compatibility
+    # Ensure response is sent immediately without waiting for full buffer
+    if ! grep -q "uwsgi_ignore_client_abort" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Adding uwsgi_ignore_client_abort for Ingress compatibility..." >&2
+        sed -i '/uwsgi_request_buffering off;/a\
+        uwsgi_ignore_client_abort on;
+' "$NGINX_TEMPLATE" 2>/dev/null || true
     fi
     
     # Ensure WebSocket location has proper headers for Ingress compatibility
