@@ -40,7 +40,9 @@ case "$METHOD" in
         # Check if we need password authentication
         if [ -n "$SSH_PASSWORD" ]; then
             if command -v sshpass >/dev/null 2>&1; then
-                SSH_CMD="sshpass -p '$SSH_PASSWORD' ssh"
+                # Use sshpass with proper escaping
+                SSH_CMD="sshpass -e ssh"
+                export SSHPASS="$SSH_PASSWORD"
                 echo "Using password authentication (via sshpass)"
             else
                 echo "Warning: sshpass not installed. Install with: brew install hudochenkov/sshpass/sshpass"
