@@ -1,4 +1,4 @@
 name: Dispatcharr Add-on Repository
-description: Home Assistant add-on to run Dispatcharr with Ingress
-url: https://example.com/dispatcharr-ha-addon
-maintainer: You <you@example.com>
+description: Home Assistant add-on repository for Dispatcharr - IPTV and stream management companion with EPG data, channel mapping, and hardware acceleration support
+url: https://github.com/Jster42/dispatcharr-ha-addon
+maintainer: Jster42

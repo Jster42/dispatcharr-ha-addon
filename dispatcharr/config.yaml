@@ -1,7 +1,7 @@
 name: Dispatcharr
 version: "1.0.0-dev"
 slug: dispatcharr
-description: IPTV companion (EPG, channels, plugins) wrapped for Home Assistant
+description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
 arch:
   - amd64
   - aarch64
