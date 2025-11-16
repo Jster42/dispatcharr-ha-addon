@@ -122,12 +122,26 @@ case "$METHOD" in
         
         # Test local connection
         echo "8. Testing local connection to nginx..."
-        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://localhost:9191/ || echo 'Connection failed'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}, Time: %{time_total}s\n' --max-time 10 http://localhost:9191/ || echo 'Connection failed'"
+        echo ""
+        
+        # Test with verbose output to see what's happening
+        echo "8b. Testing with full response headers..."
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -I --max-time 10 http://localhost:9191/ | head -10 || echo 'Connection failed'"
         echo ""
         
         # Test from container network
         echo "9. Testing from container network..."
-        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://0.0.0.0:9191/ || echo 'Connection failed'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}, Time: %{time_total}s\n' --max-time 10 http://0.0.0.0:9191/ || echo 'Connection failed'"
+        echo ""
+        
+        # Test actual response body size
+        echo "9b. Testing response body..."
+        RESPONSE_SIZE=$($SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s --max-time 10 http://localhost:9191/ | wc -c" 2>/dev/null || echo "0")
+        echo "Response body size: $RESPONSE_SIZE bytes"
+        if [ "$RESPONSE_SIZE" -lt 100 ]; then
+            echo "⚠️ Warning: Response is very small, might be incomplete"
+        fi
         echo ""
         
         # Check container network
@@ -173,15 +187,33 @@ case "$METHOD" in
         echo ""
         
         # Check recent access attempts
-        echo "16. Recent access attempts (last 5):"
-        $SSH_CMD "$DOCKER_CMD exec $CONTAINER tail -5 /var/log/nginx/access.log 2>/dev/null || echo 'No access log'"
+        echo "16. Recent access attempts (last 10):"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER tail -10 /var/log/nginx/access.log 2>/dev/null || echo 'No access log'"
+        echo ""
+        
+        # Check if there are any connection errors in nginx logs
+        echo "17. Checking for connection errors in nginx logs..."
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER grep -i 'connect\|refused\|timeout\|error' /var/log/nginx/error.log 2>/dev/null | tail -10 || echo 'No connection errors found'"
+        echo ""
+        
+        # Check uWSGI status
+        echo "18. Checking uWSGI process status..."
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER ps aux | grep uwsgi | grep -v grep | head -3 || echo 'uWSGI not running'"
+        echo ""
+        
+        # Check if uWSGI socket is accessible
+        echo "19. Checking uWSGI socket..."
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER ls -la /app/uwsgi.sock 2>/dev/null || echo 'uWSGI socket not found'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER test -S /app/uwsgi.sock && echo 'Socket exists and is accessible' || echo 'Socket not accessible'"
         echo ""
         
         echo "=== Debugging complete ==="
         echo ""
-        echo "Note: If you see 'connection refused' in browser but access logs show requests,"
-        echo "      this might be a reverse proxy or Ingress proxy timeout issue."
-        echo "      Try accessing directly via Home Assistant's internal network."
+        echo "Diagnosis:"
+        echo "- If nginx returns 200 but browser shows 'connection refused',"
+        echo "  this might be an Ingress proxy issue or response timeout."
+        echo "- Check if the response is completing before timeout."
+        echo "- Verify uWSGI is responding quickly enough."
         ;;
         
     api)
