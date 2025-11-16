@@ -91,19 +91,31 @@ case "$METHOD" in
         echo "=== Supervisor Logs ==="
         SUPERVISOR_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/supervisor/logs")
+             "$HA_URL/api/hassio/supervisor/logs" 2>&1)
         
         HTTP_STATUS=$(echo "$SUPERVISOR_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
         SUPERVISOR_BODY=$(echo "$SUPERVISOR_RESPONSE" | sed '/HTTP_STATUS:/d')
         
-        if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Error: Failed to fetch supervisor logs (HTTP $HTTP_STATUS)"
-            echo "Response: $SUPERVISOR_BODY"
+        if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch supervisor logs (HTTP ${HTTP_STATUS:-unknown})"
+            echo "Response preview:"
+            echo "$SUPERVISOR_BODY" | head -10
+            echo ""
+            echo "Note: Supervisor API might require different endpoint or permissions"
         else
-            if [ "$USE_JQ" = true ]; then
-                echo "$SUPERVISOR_BODY" | jq -r '.data' 2>/dev/null | tail -100 || echo "$SUPERVISOR_BODY"
+            # Check if response is JSON
+            if echo "$SUPERVISOR_BODY" | head -1 | grep -q "^{"; then
+                if [ "$USE_JQ" = true ]; then
+                    echo "$SUPERVISOR_BODY" | jq -r '.data // .' 2>/dev/null | tail -100 || {
+                        echo "Failed to parse JSON, showing raw response:"
+                        echo "$SUPERVISOR_BODY" | head -50
+                    }
+                else
+                    echo "$SUPERVISOR_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$SUPERVISOR_BODY" | head -50
+                fi
             else
-                echo "$SUPERVISOR_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$SUPERVISOR_BODY"
+                echo "Response is not JSON, showing raw output:"
+                echo "$SUPERVISOR_BODY" | head -50
             fi
         fi
         
@@ -112,19 +124,29 @@ case "$METHOD" in
         echo "=== Dispatcharr Add-on Logs ==="
         ADDON_LOG_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/addons/local/dispatcharr/logs")
+             "$HA_URL/api/hassio/addons/local/dispatcharr/logs" 2>&1)
         
         HTTP_STATUS=$(echo "$ADDON_LOG_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
         ADDON_LOG_BODY=$(echo "$ADDON_LOG_RESPONSE" | sed '/HTTP_STATUS:/d')
         
-        if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Error: Failed to fetch addon logs (HTTP $HTTP_STATUS)"
-            echo "Response: $ADDON_LOG_BODY"
+        if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch addon logs (HTTP ${HTTP_STATUS:-unknown})"
+            echo "Response preview:"
+            echo "$ADDON_LOG_BODY" | head -10
         else
-            if [ "$USE_JQ" = true ]; then
-                echo "$ADDON_LOG_BODY" | jq -r '.data' 2>/dev/null | tail -100 || echo "$ADDON_LOG_BODY"
+            # Check if response is JSON
+            if echo "$ADDON_LOG_BODY" | head -1 | grep -q "^{"; then
+                if [ "$USE_JQ" = true ]; then
+                    echo "$ADDON_LOG_BODY" | jq -r '.data // .' 2>/dev/null | tail -100 || {
+                        echo "Failed to parse JSON, showing raw response:"
+                        echo "$ADDON_LOG_BODY" | head -50
+                    }
+                else
+                    echo "$ADDON_LOG_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$ADDON_LOG_BODY" | head -50
+                fi
             else
-                echo "$ADDON_LOG_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$ADDON_LOG_BODY"
+                echo "Response is not JSON, showing raw output:"
+                echo "$ADDON_LOG_BODY" | head -50
             fi
         fi
         
@@ -133,14 +155,30 @@ case "$METHOD" in
         echo "=== Dispatcharr Add-on Info ==="
         ADDON_INFO_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/addons/local/dispatcharr/info")
+             "$HA_URL/api/hassio/addons/local/dispatcharr/info" 2>&1)
         
         HTTP_STATUS=$(echo "$ADDON_INFO_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
         ADDON_INFO_BODY=$(echo "$ADDON_INFO_RESPONSE" | sed '/HTTP_STATUS:/d')
         
-        if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Error: Failed to fetch addon info (HTTP $HTTP_STATUS)"
-            echo "Response: $ADDON_INFO_BODY"
+        if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch addon info (HTTP ${HTTP_STATUS:-unknown})"
+            echo "Response preview:"
+            echo "$ADDON_INFO_BODY" | head -10
+            echo ""
+            echo "Trying alternative endpoint..."
+            # Try without /local/ prefix
+            ADDON_INFO_RESPONSE2=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
+                 -H "Content-Type: application/json" \
+                 "$HA_URL/api/hassio/addons/dispatcharr/info" 2>&1)
+            HTTP_STATUS2=$(echo "$ADDON_INFO_RESPONSE2" | grep "HTTP_STATUS:" | cut -d: -f2)
+            ADDON_INFO_BODY2=$(echo "$ADDON_INFO_RESPONSE2" | sed '/HTTP_STATUS:/d')
+            if [ "$HTTP_STATUS2" = "200" ]; then
+                if [ "$USE_JQ" = true ]; then
+                    echo "$ADDON_INFO_BODY2" | jq '.data | {name, version, state, ingress, ingress_port}' 2>/dev/null || echo "$ADDON_INFO_BODY2"
+                else
+                    echo "$ADDON_INFO_BODY2"
+                fi
+            fi
         else
             if [ "$USE_JQ" = true ]; then
                 echo "$ADDON_INFO_BODY" | jq '.data | {name, version, state, ingress, ingress_port}' 2>/dev/null || echo "$ADDON_INFO_BODY"
