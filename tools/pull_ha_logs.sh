@@ -73,28 +73,95 @@ case "$METHOD" in
         
         HA_URL="${HOST%/}"
         
+        # Check if jq is installed
+        if ! command -v jq >/dev/null 2>&1; then
+            echo "Warning: jq is not installed. Installing via brew or showing raw JSON..."
+            echo "You can install it with: brew install jq"
+            echo ""
+            USE_JQ=false
+        else
+            USE_JQ=true
+        fi
+        
         echo "Fetching logs from Home Assistant API..."
+        echo "HA URL: $HA_URL"
+        echo ""
         
         # Get supervisor logs via API
-        echo ""
         echo "=== Supervisor Logs ==="
-        curl -s -H "Authorization: Bearer $TOKEN" \
+        SUPERVISOR_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/supervisor/logs" | jq -r '.data' | tail -100
+             "$HA_URL/api/hassio/supervisor/logs")
+        
+        HTTP_STATUS=$(echo "$SUPERVISOR_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+        SUPERVISOR_BODY=$(echo "$SUPERVISOR_RESPONSE" | sed '/HTTP_STATUS:/d')
+        
+        if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch supervisor logs (HTTP $HTTP_STATUS)"
+            echo "Response: $SUPERVISOR_BODY"
+        else
+            if [ "$USE_JQ" = true ]; then
+                echo "$SUPERVISOR_BODY" | jq -r '.data' 2>/dev/null | tail -100 || echo "$SUPERVISOR_BODY"
+            else
+                echo "$SUPERVISOR_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$SUPERVISOR_BODY"
+            fi
+        fi
         
         # Get addon logs
         echo ""
         echo "=== Dispatcharr Add-on Logs ==="
-        curl -s -H "Authorization: Bearer $TOKEN" \
+        ADDON_LOG_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/addons/local/dispatcharr/logs" | jq -r '.data' | tail -100
+             "$HA_URL/api/hassio/addons/local/dispatcharr/logs")
+        
+        HTTP_STATUS=$(echo "$ADDON_LOG_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+        ADDON_LOG_BODY=$(echo "$ADDON_LOG_RESPONSE" | sed '/HTTP_STATUS:/d')
+        
+        if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch addon logs (HTTP $HTTP_STATUS)"
+            echo "Response: $ADDON_LOG_BODY"
+        else
+            if [ "$USE_JQ" = true ]; then
+                echo "$ADDON_LOG_BODY" | jq -r '.data' 2>/dev/null | tail -100 || echo "$ADDON_LOG_BODY"
+            else
+                echo "$ADDON_LOG_BODY" | grep -o '"data":"[^"]*"' | sed 's/"data":"//;s/"$//' | tail -100 || echo "$ADDON_LOG_BODY"
+            fi
+        fi
         
         # Get addon info
         echo ""
         echo "=== Dispatcharr Add-on Info ==="
-        curl -s -H "Authorization: Bearer $TOKEN" \
+        ADDON_INFO_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
              -H "Content-Type: application/json" \
-             "$HA_URL/api/hassio/addons/local/dispatcharr/info" | jq '.data | {name, version, state, ingress, ingress_port}'
+             "$HA_URL/api/hassio/addons/local/dispatcharr/info")
+        
+        HTTP_STATUS=$(echo "$ADDON_INFO_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+        ADDON_INFO_BODY=$(echo "$ADDON_INFO_RESPONSE" | sed '/HTTP_STATUS:/d')
+        
+        if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Error: Failed to fetch addon info (HTTP $HTTP_STATUS)"
+            echo "Response: $ADDON_INFO_BODY"
+        else
+            if [ "$USE_JQ" = true ]; then
+                echo "$ADDON_INFO_BODY" | jq '.data | {name, version, state, ingress, ingress_port}' 2>/dev/null || echo "$ADDON_INFO_BODY"
+            else
+                echo "$ADDON_INFO_BODY"
+            fi
+        fi
+        
+        # Try to get ingress-specific logs
+        echo ""
+        echo "=== Checking Ingress Status ==="
+        INGRESS_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
+             -H "Content-Type: application/json" \
+             "$HA_URL/api/hassio/ingress/sessions" 2>/dev/null || echo "HTTP_STATUS:404")
+        
+        HTTP_STATUS=$(echo "$INGRESS_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+        if [ "$HTTP_STATUS" = "200" ]; then
+            echo "Ingress sessions found"
+        else
+            echo "Could not fetch ingress sessions (this is normal)"
+        fi
         ;;
         
     docker)
