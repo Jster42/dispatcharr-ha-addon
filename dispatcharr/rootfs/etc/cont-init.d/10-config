@@ -5,6 +5,8 @@ CONFIG=/data/options.json
 # Set base environment (matching docker-compose.aio.yml from dev branch)
 export DISPATCHARR_ENV=aio
 export DISPATCHARR_LOG_LEVEL=info
+# Set port for Ingress - nginx will listen on this port
+export DISPATCHARR_PORT=9191
 
 if [ -f "$CONFIG" ]; then
   USERNAME=$(jq -r '.username' "$CONFIG")
