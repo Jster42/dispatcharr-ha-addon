@@ -1,21 +1,24 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
 
-# Ensure DISPATCHARR_ENV is set for aio mode (required for entrypoint.aio.sh)
+# Ensure DISPATCHARR_ENV is set for aio mode
 export DISPATCHARR_ENV="${DISPATCHARR_ENV:-aio}"
 
 # Verify Gunicorn will bind to the correct port for Ingress
 export GUNICORN_PORT=9191
 
-# Use the upstream entrypoint.aio.sh from dev branch (starts Redis, Celery, Gunicorn)
-# Try entrypoint.aio.sh first (dev branch), then fallback to entrypoint.sh
-if [ -f /entrypoint.aio.sh ]; then
+# Use the actual entrypoint from the container (as shown in Portainer)
+# The dev image uses /app/docker/entrypoint.sh as the entrypoint
+if [ -f /app/docker/entrypoint.sh ]; then
+    echo "Starting Dispatcharr with /app/docker/entrypoint.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
+    exec /app/docker/entrypoint.sh
+elif [ -f /entrypoint.aio.sh ]; then
     echo "Starting Dispatcharr with /entrypoint.aio.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
     exec /entrypoint.aio.sh
 elif [ -f /entrypoint.sh ]; then
     echo "Starting Dispatcharr with /entrypoint.sh" >&2
     exec /entrypoint.sh
 else
-    echo "ERROR: No entrypoint script found (/entrypoint.aio.sh or /entrypoint.sh)" >&2
+    echo "ERROR: No entrypoint script found (/app/docker/entrypoint.sh, /entrypoint.aio.sh, or /entrypoint.sh)" >&2
     exit 1
 fi
