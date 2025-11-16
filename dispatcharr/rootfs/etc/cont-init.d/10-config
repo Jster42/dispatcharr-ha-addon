@@ -20,6 +20,17 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
     sed -i.bak "s/listen[[:space:]]*NGINX_PORT;/listen 0.0.0.0:NGINX_PORT;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
     sed -i.bak "s/listen[[:space:]]*NGINX_PORT[[:space:]]*default_server;/listen 0.0.0.0:NGINX_PORT default_server;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
     rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    
+    # Also increase uWSGI timeouts for Ingress compatibility
+    # Ingress requests may take longer due to proxy layers
+    if grep -q "uwsgi_read_timeout" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Increasing uWSGI timeouts for Ingress compatibility..." >&2
+        sed -i.bak "s/uwsgi_read_timeout[[:space:]]*[0-9]*;/uwsgi_read_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        sed -i.bak "s/uwsgi_send_timeout[[:space:]]*[0-9]*;/uwsgi_send_timeout 300;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        sed -i.bak "s/uwsgi_connect_timeout[[:space:]]*[0-9]*;/uwsgi_connect_timeout 75;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    fi
+    
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
 fi
 
