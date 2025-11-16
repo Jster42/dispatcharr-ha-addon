@@ -43,6 +43,18 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
     
+    # Ensure keep-alive is enabled for Ingress compatibility
+    # This helps maintain connections through proxy layers
+    if ! grep -q "keepalive_timeout" "$NGINX_TEMPLATE" 2>/dev/null && ! grep -q "keepalive_timeout" /etc/nginx/nginx.conf 2>/dev/null; then
+        echo "Adding keep-alive settings for Ingress compatibility..." >&2
+        # Add keepalive settings in the server block
+        sed -i.bak '/server {/a\
+    keepalive_timeout 65;
+    keepalive_requests 100;
+' "$NGINX_TEMPLATE" 2>/dev/null || true
+        rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    fi
+    
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
 fi
 
