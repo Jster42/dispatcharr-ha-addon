@@ -1,14 +1,31 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
 
-# Example executable path; replace with actual Dispatcharr start command if different
+# Prefer upstream entrypoints if present
+for ep in \
+  "/entrypoint.sh" \
+  "/docker-entrypoint.sh" \
+  "/usr/local/bin/entrypoint.sh" \
+  "/app/entrypoint.sh" \
+  "/start.sh" \
+  "/app/start.sh" \
+  ; do
+  if [ -x "$ep" ]; then
+    exec "$ep"
+  fi
+done
+
+# Try common launch commands
 if command -v dispatcharr >/dev/null 2>&1; then
   exec dispatcharr --host 0.0.0.0 --port 9191
 fi
-# Fallback: try python module if Dispatcharr ships as python package
 if command -v python3 >/dev/null 2>&1 && python3 -c "import dispatcharr" 2>/dev/null; then
   exec python3 -m dispatcharr --host 0.0.0.0 --port 9191
 fi
-# As a last resort, run a placeholder that logs and sleeps to avoid crash loops
-echo "Dispatcharr binary not found in PATH. Please switch base image to upstream Dispatcharr or add install steps." >&2
+if command -v uvicorn >/dev/null 2>&1; then
+  # Guess typical ASGI app location
+  exec uvicorn dispatcharr.app:app --host 0.0.0.0 --port 9191
+fi
+
+echo "Dispatcharr entrypoint not found in dev image. Consider switching to HA base and installing Dispatcharr, or specify the correct entrypoint path." >&2
 sleep 3600
