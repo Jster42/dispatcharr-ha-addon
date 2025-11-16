@@ -55,13 +55,15 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
     
-    # Disable proxy buffering for Ingress to ensure full response is sent
-    # This prevents responses from being truncated by buffering
-    if ! grep -q "proxy_buffering off" "$NGINX_TEMPLATE" 2>/dev/null; then
-        echo "Disabling proxy buffering for Ingress compatibility..." >&2
-        # Add proxy_buffering off in the location / block
+    # Disable uwsgi buffering for Ingress to ensure full response is sent
+    # Access logs show 396 bytes but actual response is 772 bytes - response is being truncated
+    # This prevents responses from being truncated by uwsgi buffering
+    if ! grep -q "uwsgi_buffering off" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Disabling uwsgi buffering for Ingress compatibility..." >&2
+        # Add uwsgi_buffering off in the location / block
         sed -i.bak '/location \/ {/a\
-        proxy_buffering off;
+        uwsgi_buffering off;
+        uwsgi_request_buffering off;
 ' "$NGINX_TEMPLATE" 2>/dev/null || true
         rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
     fi
