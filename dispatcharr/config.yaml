@@ -1,10 +1,10 @@
 name: Dispatcharr
-version: "1.0.47-dev"
+version: "1.0.48-dev"
 slug: dispatcharr
 description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
-arch:
-  - amd64
-  - aarch64
+  arch:
+    - amd64
+    - aarch64
   startup: application
   init: false
   ingress: false
