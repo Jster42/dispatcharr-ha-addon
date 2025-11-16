@@ -1,14 +1,6 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
-FROM ${BUILD_FROM}
+FROM dispatcharr/dispatcharr:dev
 
-RUN apk add --no-cache bash curl jq
-
-# Copy s6 service and init scripts
+# Add s6 run/init scripts to wire add-on options and supervision
 COPY rootfs/ /
-
-# If you prefer upstream image directly, replace base with it and keep COPY rootfs
-# Example:
-# FROM dispatcharr/dispatcharr:latest
-# COPY rootfs/ /
 
 EXPOSE 9191
