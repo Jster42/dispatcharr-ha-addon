@@ -64,13 +64,27 @@ case "$METHOD" in
         echo "=== Debugging Ingress on $HOST ==="
         echo ""
         
+        # Try to determine if we need sudo for docker commands
+        DOCKER_CMD="docker"
+        if ! $SSH_CMD "docker ps >/dev/null 2>&1"; then
+            echo "Note: Using sudo for docker commands (permission required)"
+            DOCKER_CMD="sudo docker"
+        fi
+        
         # Find container
         echo "1. Finding Dispatcharr container..."
-        CONTAINER=$($SSH_CMD "docker ps | grep dispatcharr | awk '{print \$1}'" | head -1)
+        CONTAINER=$($SSH_CMD "$DOCKER_CMD ps | grep dispatcharr | awk '{print \$1}'" | head -1)
         if [ -z "$CONTAINER" ]; then
             echo "❌ Container not found!"
             echo "Running containers:"
-            $SSH_CMD "docker ps"
+            $SSH_CMD "$DOCKER_CMD ps" 2>&1 | head -10
+            echo ""
+            echo "Trying alternative method..."
+            # Try using ha CLI if available
+            if $SSH_CMD "command -v ha >/dev/null 2>&1"; then
+                echo "Using Home Assistant CLI..."
+                $SSH_CMD "ha addons info dispatcharr" 2>&1 | head -20
+            fi
             exit 1
         fi
         echo "✅ Container ID: $CONTAINER"
@@ -78,47 +92,47 @@ case "$METHOD" in
         
         # Check nginx is running
         echo "2. Checking nginx process..."
-        $SSH_CMD "docker exec $CONTAINER ps aux | grep nginx | grep -v grep || echo 'Nginx not running'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER ps aux | grep nginx | grep -v grep || echo 'Nginx not running'"
         echo ""
         
         # Check listening ports
         echo "3. Checking listening ports..."
-        $SSH_CMD "docker exec $CONTAINER ss -tlnp 2>/dev/null | grep 9191 || docker exec $CONTAINER netstat -tlnp 2>/dev/null | grep 9191 || echo 'Port 9191 not found'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER ss -tlnp 2>/dev/null | grep 9191 || $DOCKER_CMD exec $CONTAINER netstat -tlnp 2>/dev/null | grep 9191 || echo 'Port 9191 not found'"
         echo ""
         
         # Check nginx config
         echo "4. Checking nginx configuration..."
-        $SSH_CMD "docker exec $CONTAINER cat /etc/nginx/sites-enabled/default | grep -A 5 'listen' | head -10"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER cat /etc/nginx/sites-enabled/default | grep -A 5 'listen' | head -10"
         echo ""
         
         # Test nginx config
         echo "5. Testing nginx configuration..."
-        $SSH_CMD "docker exec $CONTAINER nginx -t 2>&1"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER nginx -t 2>&1"
         echo ""
         
         # Check nginx error logs
         echo "6. Checking nginx error logs (last 20 lines)..."
-        $SSH_CMD "docker exec $CONTAINER tail -20 /var/log/nginx/error.log 2>/dev/null || echo 'No error log found'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER tail -20 /var/log/nginx/error.log 2>/dev/null || echo 'No error log found'"
         echo ""
         
         # Check nginx access logs
         echo "7. Checking nginx access logs (last 10 lines)..."
-        $SSH_CMD "docker exec $CONTAINER tail -10 /var/log/nginx/access.log 2>/dev/null || echo 'No access log found'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER tail -10 /var/log/nginx/access.log 2>/dev/null || echo 'No access log found'"
         echo ""
         
         # Test local connection
         echo "8. Testing local connection to nginx..."
-        $SSH_CMD "docker exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://localhost:9191/ || echo 'Connection failed'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://localhost:9191/ || echo 'Connection failed'"
         echo ""
         
         # Test from container network
         echo "9. Testing from container network..."
-        $SSH_CMD "docker exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://0.0.0.0:9191/ || echo 'Connection failed'"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' http://0.0.0.0:9191/ || echo 'Connection failed'"
         echo ""
         
         # Check container network
         echo "10. Checking container network configuration..."
-        $SSH_CMD "docker inspect $CONTAINER | grep -A 20 'NetworkSettings' | head -25"
+        $SSH_CMD "$DOCKER_CMD inspect $CONTAINER | grep -A 20 'NetworkSettings' | head -25"
         echo ""
         
         # Check if Supervisor can reach the container
@@ -129,12 +143,12 @@ case "$METHOD" in
         
         # Check Home Assistant logs for ingress errors
         echo "12. Checking Home Assistant logs for ingress errors..."
-        $SSH_CMD "journalctl -u hassio-supervisor --no-pager | grep -i 'ingress\|dispatcharr' | tail -20 || echo 'No ingress errors found'"
+        $SSH_CMD "sudo journalctl -u hassio-supervisor --no-pager | grep -i 'ingress\|dispatcharr' | tail -20 || echo 'No ingress errors found'"
         echo ""
         
         # Check addon config
         echo "13. Checking addon configuration..."
-        $SSH_CMD "cat /data/addons/data/core_config_manager/dispatcharr/config.yaml 2>/dev/null | grep -E 'ingress|port' || echo 'Config not found in expected location'"
+        $SSH_CMD "sudo cat /data/addons/data/core_config_manager/dispatcharr/config.yaml 2>/dev/null | grep -E 'ingress|port' || echo 'Config not found in expected location'"
         echo ""
         
         echo "=== Debugging complete ==="
