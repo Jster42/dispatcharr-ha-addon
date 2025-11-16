@@ -1,3 +1,16 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
-exec /entrypoint.sh
+# Use the upstream entrypoint which handles all setup
+if [ -f /entrypoint.sh ]; then
+    exec /entrypoint.sh
+elif [ -f /docker-entrypoint.sh ]; then
+    exec /docker-entrypoint.sh
+else
+    # Fallback: try to find and run dispatcharr directly
+    if command -v dispatcharr >/dev/null 2>&1; then
+        exec dispatcharr --host 0.0.0.0 --port 9191
+    else
+        echo "ERROR: No entrypoint script or dispatcharr binary found" >&2
+        exit 1
+    fi
+fi
