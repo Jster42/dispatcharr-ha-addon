@@ -121,12 +121,16 @@ If you have SSH access to Home Assistant, you can verify the service is listenin
 
 ```bash
 # Check if port 9191 is being used by the add-on
-docker exec addon_local_dispatcharr netstat -tlnp | grep 9191
+docker exec addon_76e82d43_dispatcharr netstat -tlnp | grep 9191
 # or
-docker exec addon_local_dispatcharr ss -tlnp | grep 9191
+docker exec addon_76e82d43_dispatcharr ss -tlnp | grep 9191
+# Check nginx port
+docker exec addon_76e82d43_dispatcharr ss -tlnp | grep nginx
+# Check all listening ports
+docker exec addon_76e82d43_dispatcharr netstat -tlnp
 ```
 
-You should see the service listening on `0.0.0.0:9191`.
+You should see the service (nginx or uWSGI) listening on `0.0.0.0:9191`.
 
 ## Technical Details
 
