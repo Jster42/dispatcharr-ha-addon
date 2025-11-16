@@ -1,31 +1,31 @@
 name: Dispatcharr
-version: "1.0.48-dev"
+version: "1.0.49-dev"
 slug: dispatcharr
 description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
-  arch:
-    - amd64
-    - aarch64
-  startup: application
-  init: false
-  ingress: false
-  panel_icon: mdi:television-classic
-  map:
-    - config:rw
-    - media:rw
-  options:
-    username: jeff
-    password: ""
-    epg_url: https://epg.iptv.cat/epg.xml
-    timezone: UTC
-  schema:
-    username: str
-    password: str?
-    epg_url: url
-    timezone: str
-  ports:
-    9191/tcp: 9191
-  ports_description:
-    9191/tcp: Dispatcharr web interface
+arch:
+  - amd64
+  - aarch64
+startup: application
+init: false
+ingress: false
+panel_icon: mdi:television-classic
+map:
+  - config:rw
+  - media:rw
+options:
+  username: jeff
+  password: ""
+  epg_url: https://epg.iptv.cat/epg.xml
+  timezone: UTC
+schema:
+  username: str
+  password: str?
+  epg_url: url
+  timezone: str
+ports:
+  9191/tcp: 9191
+ports_description:
+  9191/tcp: Dispatcharr web interface
 devices:
   - /dev/dri
 environment:
