@@ -8,6 +8,21 @@ export DISPATCHARR_LOG_LEVEL=info
 # Set port for Ingress - nginx will listen on this port
 export DISPATCHARR_PORT=9191
 
+# Patch nginx config template BEFORE entrypoint runs
+# The entrypoint's init script (03-init-dispatcharr.sh) replaces NGINX_PORT with DISPATCHARR_PORT
+# But it creates "listen 9191;" instead of "listen 0.0.0.0:9191;"
+# We need to ensure the template has 0.0.0.0 binding for Ingress compatibility
+NGINX_TEMPLATE="/etc/nginx/sites-enabled/default"
+if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/dev/null; then
+    echo "Patching nginx template to use 0.0.0.0 binding for Ingress..." >&2
+    # Replace "listen NGINX_PORT;" with "listen 0.0.0.0:NGINX_PORT;"
+    # The init script will then replace NGINX_PORT with 9191, resulting in "listen 0.0.0.0:9191;"
+    sed -i.bak "s/listen[[:space:]]*NGINX_PORT;/listen 0.0.0.0:NGINX_PORT;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+    sed -i.bak "s/listen[[:space:]]*NGINX_PORT[[:space:]]*default_server;/listen 0.0.0.0:NGINX_PORT default_server;/g" "$NGINX_TEMPLATE" 2>/dev/null || true
+    rm -f "${NGINX_TEMPLATE}.bak" 2>/dev/null || true
+    echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
+fi
+
 if [ -f "$CONFIG" ]; then
   USERNAME=$(jq -r '.username' "$CONFIG")
   PASSWORD=$(jq -r '.password // empty' "$CONFIG")

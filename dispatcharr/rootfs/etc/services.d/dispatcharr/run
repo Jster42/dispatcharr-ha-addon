@@ -39,13 +39,12 @@ if [ -f /app/docker/entrypoint.sh ]; then
     echo "  Note: The entrypoint will replace NGINX_PORT in nginx.conf with $DISPATCHARR_PORT" >&2
     echo "  Note: We will patch nginx config to explicitly bind to 0.0.0.0 for Ingress compatibility" >&2
     
-    # Start a background process to patch nginx config after init script runs
-    # This ensures nginx explicitly binds to 0.0.0.0:9191 for Ingress compatibility
-    # Note: We don't restrict to 172.30.32.2 as that IP can vary; listening on 0.0.0.0
-    # is sufficient since the container is isolated and only accessible via Ingress
+    # Verify nginx config after entrypoint runs (as a backup check)
+    # The cont-init.d script should have already patched the template,
+    # but we verify here as a safety check
     (
         # Wait for init script to create nginx config (init script runs early in entrypoint)
-        sleep 5
+        sleep 8
         nginx_conf="/etc/nginx/sites-enabled/default"
         
         # Wait for config file to exist (init script creates it)
@@ -57,11 +56,10 @@ if [ -f /app/docker/entrypoint.sh ]; then
         done
         
         if [ -f "$nginx_conf" ]; then
-            # Check if it needs patching (init script creates "listen 9191;" we need "listen 0.0.0.0:9191;")
-            # In nginx, "listen 9191;" binds to all interfaces by default, but being explicit helps
+            # Verify it has the correct binding (should already be set from template patching)
             if ! grep -q "listen[[:space:]]*0\.0\.0\.0:$DISPATCHARR_PORT" "$nginx_conf" 2>/dev/null; then
-                echo "Patching nginx config to explicitly bind to 0.0.0.0:$DISPATCHARR_PORT for Ingress" >&2
-                # Replace "listen 9191;" with "listen 0.0.0.0:9191;"
+                echo "⚠️ Warning: Nginx config doesn't have 0.0.0.0 binding, patching now..." >&2
+                # Replace "listen 9191;" with "listen 0.0.0.0:9191;" as fallback
                 sed -i.bak "s/listen[[:space:]]*$DISPATCHARR_PORT;/listen 0.0.0.0:$DISPATCHARR_PORT;/g" "$nginx_conf" 2>/dev/null
                 sed -i.bak "s/listen[[:space:]]*$DISPATCHARR_PORT[[:space:]]*default_server;/listen 0.0.0.0:$DISPATCHARR_PORT default_server;/g" "$nginx_conf" 2>/dev/null
                 rm -f "${nginx_conf}.bak" 2>/dev/null || true
@@ -71,28 +69,30 @@ if [ -f /app/docker/entrypoint.sh ]; then
                     echo "Reloading nginx to apply Ingress binding changes" >&2
                     nginx -s reload 2>/dev/null || true
                 fi
-                
-                if grep -q "listen[[:space:]]*0\.0\.0\.0:$DISPATCHARR_PORT" "$nginx_conf" 2>/dev/null; then
-                    echo "✅ Nginx config patched successfully - listening on 0.0.0.0:$DISPATCHARR_PORT for Ingress" >&2
-                    # Verify nginx is actually listening on the correct port
-                    sleep 2
-                    if command -v ss >/dev/null 2>&1; then
-                        echo "Verifying nginx is listening on port $DISPATCHARR_PORT..." >&2
-                        ss -tlnp | grep ":$DISPATCHARR_PORT " >&2 || echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
-                    elif command -v netstat >/dev/null 2>&1; then
-                        echo "Verifying nginx is listening on port $DISPATCHARR_PORT..." >&2
-                        netstat -tlnp | grep ":$DISPATCHARR_PORT " >&2 || echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
-                    fi
-                    # Show the actual nginx config for debugging
-                    echo "Current nginx listen directive:" >&2
-                    grep "listen" "$nginx_conf" | head -1 >&2
+            fi
+            
+            # Verify nginx is actually listening on the correct port
+            sleep 2
+            echo "Verifying nginx configuration..." >&2
+            echo "Current nginx listen directive:" >&2
+            grep "listen" "$nginx_conf" | head -1 >&2
+            
+            if command -v ss >/dev/null 2>&1; then
+                echo "Checking if nginx is listening on port $DISPATCHARR_PORT..." >&2
+                LISTEN_CHECK=$(ss -tlnp 2>/dev/null | grep ":$DISPATCHARR_PORT " || true)
+                if [ -n "$LISTEN_CHECK" ]; then
+                    echo "✅ Nginx is listening: $LISTEN_CHECK" >&2
                 else
-                    echo "⚠️ Warning: Nginx config patching may have failed" >&2
-                    echo "Current nginx config listen directive:" >&2
-                    grep "listen" "$nginx_conf" | head -1 >&2
+                    echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
                 fi
-            else
-                echo "Nginx config already has correct 0.0.0.0:$DISPATCHARR_PORT binding" >&2
+            elif command -v netstat >/dev/null 2>&1; then
+                echo "Checking if nginx is listening on port $DISPATCHARR_PORT..." >&2
+                LISTEN_CHECK=$(netstat -tlnp 2>/dev/null | grep ":$DISPATCHARR_PORT " || true)
+                if [ -n "$LISTEN_CHECK" ]; then
+                    echo "✅ Nginx is listening: $LISTEN_CHECK" >&2
+                else
+                    echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
+                fi
             fi
         else
             echo "⚠️ Warning: Nginx config file not found at $nginx_conf after waiting" >&2
