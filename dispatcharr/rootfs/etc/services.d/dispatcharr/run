@@ -100,7 +100,8 @@ if [ -f /app/docker/entrypoint.sh ]; then
             # Test HTTP connection to nginx
             echo "Testing HTTP connection to nginx..." >&2
             if command -v curl >/dev/null 2>&1; then
-                HTTP_TEST=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:$DISPATCHARR_PORT/ 2>&1 || echo "FAILED")
+                # Test with longer timeout to catch slow responses
+                HTTP_TEST=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 --connect-timeout 5 http://localhost:$DISPATCHARR_PORT/ 2>&1 || echo "FAILED")
                 if [ "$HTTP_TEST" = "200" ] || [ "$HTTP_TEST" = "301" ] || [ "$HTTP_TEST" = "302" ] || [ "$HTTP_TEST" = "404" ]; then
                     echo "✅ Nginx is responding to HTTP requests (HTTP $HTTP_TEST)" >&2
                 elif [ "$HTTP_TEST" = "000" ] || [ "$HTTP_TEST" = "FAILED" ]; then
@@ -109,6 +110,13 @@ if [ -f /app/docker/entrypoint.sh ]; then
                     echo "  - uWSGI socket not ready" >&2
                     echo "  - Nginx configuration issue" >&2
                     echo "  - Service not fully started" >&2
+                    echo "  - Connection timeout (check uWSGI socket)" >&2
+                    # Check if uWSGI is actually running
+                    if pgrep uwsgi >/dev/null 2>&1; then
+                        echo "  Note: uWSGI process is running" >&2
+                    else
+                        echo "  ⚠️ uWSGI process not found!" >&2
+                    fi
                 else
                     echo "⚠️ Nginx returned HTTP $HTTP_TEST" >&2
                 fi
