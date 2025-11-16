@@ -41,12 +41,44 @@ else
     USE_JQ=true
 fi
 
-echo "Updating Dispatcharr addon via Home Assistant API..."
+echo "Refreshing Dispatcharr addon repository..."
 echo "HA URL: $HA_URL"
-echo "Addon: $ADDON_SLUG"
+echo ""
+echo "Note: For local addons from git repositories, Home Assistant will"
+echo "      detect the new version after refreshing the repository."
 echo ""
 
-# First, try to get addon info to find the correct slug
+# Refresh the store/repositories first
+echo "=== Refreshing addon repositories ==="
+STORE_REFRESH=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+     -H "Authorization: Bearer $HA_TOKEN" \
+     -H "Content-Type: application/json" \
+     "$HA_URL/api/hassio/store/reload" 2>&1)
+
+HTTP_STATUS=$(echo "$STORE_REFRESH" | grep "HTTP_STATUS:" | cut -d: -f2)
+if [ "$HTTP_STATUS" = "200" ]; then
+    echo "✅ Repository refresh initiated"
+    echo "Home Assistant will now check for updates..."
+    echo ""
+    echo "Next steps:"
+    echo "1. Wait 10-30 seconds for the repository to refresh"
+    echo "2. Go to Home Assistant → Settings → Add-ons → Dispatcharr"
+    echo "3. Click 'Update' if a new version is available"
+    echo "4. Or the addon may auto-update if configured"
+    exit 0
+else
+    echo "⚠️ Repository refresh returned HTTP $HTTP_STATUS"
+    echo "You may need to manually refresh the repository in Home Assistant UI"
+    echo ""
+    echo "Manual steps:"
+    echo "1. Go to Settings → Add-ons → Add-on Store"
+    echo "2. Click the ⋮ menu → Repositories"
+    echo "3. Find your repository and click refresh"
+    echo "4. Then update the Dispatcharr addon"
+    exit 0
+fi
+
+# Old code below (kept for reference but won't execute due to exit above)
 echo "=== Finding addon ==="
 ADDON_INFO=$(curl -s -H "Authorization: Bearer $HA_TOKEN" \
      -H "Content-Type: application/json" \
