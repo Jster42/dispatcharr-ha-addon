@@ -11,6 +11,7 @@ This add-on wraps Dispatcharr with Ingress on port 9191.
 ## Notes
 - If Dispatcharr is not installed in the base image, switch the Dockerfile to use the upstream Dispatcharr image and remove the placeholder.
 - Data persists in `/data` inside the add-on container.
+- **GPU Acceleration**: Intel/AMD GPU devices (`/dev/dri`) are automatically passed through to enable VAAPI/QSV hardware transcoding. The add-on will detect and use available GPU acceleration automatically.
 
 ## Dev image entrypoint discovery (local)
 Run these on your dev machine to detect the correct start command for `dispatcharr/dispatcharr:dev`, then update the add-on:

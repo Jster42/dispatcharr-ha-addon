@@ -25,5 +25,7 @@ schema:
   timezone: str
 ports: {}
 ports_description: {}
+devices:
+  - /dev/dri:/dev/dri
 environment:
   TZ: "!secret timezone"
