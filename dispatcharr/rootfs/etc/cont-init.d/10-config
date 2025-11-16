@@ -56,7 +56,7 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
     fi
     
     # Disable uwsgi buffering for Ingress to ensure full response is sent
-    # Access logs show 396 bytes but actual response is 772 bytes - response is being truncated
+    # Access logs show 396-407 bytes but actual response is 772 bytes - response is being truncated
     # This prevents responses from being truncated by uwsgi buffering
     # Only add to the FIRST location / block (not duplicates)
     if ! grep -q "uwsgi_buffering off" "$NGINX_TEMPLATE" 2>/dev/null; then
@@ -71,6 +71,21 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         echo "uwsgi_buffering settings added" >&2
     else
         echo "uwsgi_buffering settings already present" >&2
+    fi
+    
+    # Disable sendfile and tcp_nopush for Ingress compatibility
+    # sendfile can cause issues with proxy servers like Home Assistant Ingress
+    # The Ingress proxy may close the connection before all data is sent
+    if ! grep -q "sendfile off" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Disabling sendfile for Ingress compatibility..." >&2
+        # Add sendfile off after uwsgi_request_buffering off
+        sed -i '/uwsgi_request_buffering off;/a\
+        sendfile off;
+        tcp_nopush off;
+' "$NGINX_TEMPLATE" 2>/dev/null || true
+        echo "sendfile settings added" >&2
+    else
+        echo "sendfile settings already present" >&2
     fi
     
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
