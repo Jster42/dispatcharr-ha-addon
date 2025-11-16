@@ -1,25 +1,4 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
-# Debug: log what exists
-echo "=== Dispatcharr service starting ===" >&2
-ls -la /entrypoint.sh /docker-entrypoint.sh 2>&1 | head -5 >&2 || true
-which dispatcharr 2>&1 || echo "dispatcharr not in PATH" >&2
-ls -la /app /usr/local/bin 2>&1 | head -10 >&2 || true
-# Use the upstream entrypoint which handles all setup
-if [ -f /entrypoint.sh ]; then
-    echo "Found /entrypoint.sh, executing..." >&2
-    exec /entrypoint.sh
-elif [ -f /docker-entrypoint.sh ]; then
-    echo "Found /docker-entrypoint.sh, executing..." >&2
-    exec /docker-entrypoint.sh
-else
-    # Fallback: try to find and run dispatcharr directly
-    if command -v dispatcharr >/dev/null 2>&1; then
-        echo "Found dispatcharr binary, executing..." >&2
-        exec dispatcharr --host 0.0.0.0 --port 9191
-    else
-        echo "ERROR: No entrypoint script or dispatcharr binary found" >&2
-        echo "PATH=$PATH" >&2
-        exit 1
-    fi
-fi
+# Use the upstream entrypoint - this works locally on dev image
+exec /entrypoint.sh
