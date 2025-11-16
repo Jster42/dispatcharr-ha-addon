@@ -1,0 +1,4 @@
+name: Dispatcharr Add-on Repository
+description: Home Assistant add-on to run Dispatcharr with Ingress
+url: https://example.com/dispatcharr-ha-addon
+maintainer: You <you@example.com>

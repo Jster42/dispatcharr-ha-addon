@@ -1,0 +1,14 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+
+# Example executable path; replace with actual Dispatcharr start command if different
+if command -v dispatcharr >/dev/null 2>&1; then
+  exec dispatcharr --host 0.0.0.0 --port 9191
+fi
+# Fallback: try python module if Dispatcharr ships as python package
+if command -v python3 >/dev/null 2>&1 && python3 -c "import dispatcharr" 2>/dev/null; then
+  exec python3 -m dispatcharr --host 0.0.0.0 --port 9191
+fi
+# As a last resort, run a placeholder that logs and sleeps to avoid crash loops
+echo "Dispatcharr binary not found in PATH. Please switch base image to upstream Dispatcharr or add install steps." >&2
+sleep 3600

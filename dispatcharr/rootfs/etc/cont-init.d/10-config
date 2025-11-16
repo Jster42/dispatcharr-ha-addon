@@ -1,0 +1,21 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+CONFIG=/data/options.json
+
+if [ -f "$CONFIG" ]; then
+  USERNAME=$(jq -r '.username' "$CONFIG")
+  PASSWORD=$(jq -r '.password // empty' "$CONFIG")
+  EPG_URL=$(jq -r '.epg_url' "$CONFIG")
+  TZ_OPT=$(jq -r '.timezone' "$CONFIG")
+  export DISPATCHARR_USERNAME="$USERNAME"
+  export DISPATCHARR_PASSWORD="$PASSWORD"
+  export DISPATCHARR_EPG_URL="$EPG_URL"
+  export TZ="$TZ_OPT"
+  # Persist a simple env file (optional)
+  cat > /data/dispatcharr.env <<EOF
+DISPATCHARR_USERNAME=$DISPATCHARR_USERNAME
+DISPATCHARR_PASSWORD=$DISPATCHARR_PASSWORD
+DISPATCHARR_EPG_URL=$DISPATCHARR_EPG_URL
+TZ=$TZ
+EOF
+fi

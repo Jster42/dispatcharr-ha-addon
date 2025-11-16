@@ -1,0 +1,29 @@
+name: Dispatcharr
+version: "0.1.0"
+slug: dispatcharr
+description: IPTV companion (EPG, channels, plugins) wrapped for Home Assistant
+arch:
+  - amd64
+  - aarch64
+startup: application
+init: false
+ingress: true
+ingress_port: 9191
+panel_icon: mdi:television-classic
+map:
+  - config:rw
+  - media:rw
+options:
+  username: jeff
+  password: ""
+  epg_url: https://epg.iptv.cat/epg.xml
+  timezone: UTC
+schema:
+  username: str
+  password: str?
+  epg_url: url
+  timezone: str
+ports: {}
+ports_description: {}
+environment:
+  TZ: "!secret timezone"
