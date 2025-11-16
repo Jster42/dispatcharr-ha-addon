@@ -81,56 +81,73 @@ You may see a warning like:
 
 ## Ingress Troubleshooting
 
-If Ingress is not working (e.g., showing "Home Assistant" page or errors):
+If Ingress is not working (e.g., showing "Home Assistant" page, connection errors, or blank page):
 
-### Check Add-on Logs
+### Step 1: Check Add-on Logs
 
 1. In Home Assistant: **Settings** → **Add-ons** → **Dispatcharr** → **Log**
-2. Look for messages like:
-   - `Starting Dispatcharr with /entrypoint.aio.sh`
-   - `✅ Gunicorn started with PID`
-   - `Starting Gunicorn...`
+2. Look for these key messages:
+   - `=== Ingress Configuration ===` - Shows port configuration
+   - `Starting Dispatcharr with /app/docker/entrypoint.sh` or `/entrypoint.aio.sh`
+   - `NGINX_PORT: 9191` or `GUNICORN_PORT: 9191`
+   - Any error messages about port binding or service startup
 
-### Verify Service is Running
+### Step 2: Verify Service is Running and Listening
 
-In the add-on logs, you should see:
+In the add-on logs, you should see the service starting. The service must bind to `0.0.0.0:9191` (not `127.0.0.1:9191`) for Ingress to work.
 
-```
-🚀 Starting Gunicorn...
-✅ Gunicorn started with PID <pid>
-```
+**For nginx/uWSGI setup** (using `/app/docker/entrypoint.sh`):
+- Look for nginx startup messages
+- Should show nginx listening on port 9191
 
-If Gunicorn is not starting, check for errors in the logs.
+**For Gunicorn setup** (using `/entrypoint.aio.sh`):
+- Look for: `Starting Gunicorn...` or `Gunicorn started`
+- Should show binding to `0.0.0.0:9191`
 
-### Verify Port Configuration
+### Step 3: Verify Port Binding (Advanced)
 
-- **Ingress Port**: The add-on is configured to use port `9191` for Ingress
-- **Gunicorn Binding**: Should bind to `0.0.0.0:9191` (visible in logs)
-- If port conflicts occur, check that no other service is using port 9191
-
-### Common Issues
-
-- **Service not started**: Ensure the add-on shows as "Started" in Home Assistant
-- **Port mismatch**: Verify `ingress_port: 9191` in the add-on configuration matches what Gunicorn binds to
-- **Service crash loop**: Check logs for errors; common causes include missing dependencies or configuration issues
-- **Ingress shows HA page**: Usually means the service isn't listening on the configured port yet, or there's a routing issue
-
-### Manual Port Check (Advanced)
-
-If you have SSH access to Home Assistant, you can verify the service is listening:
+If you have SSH access to Home Assistant, verify the service is listening correctly:
 
 ```bash
-# Check if port 9191 is being used by the add-on
-docker exec addon_76e82d43_dispatcharr netstat -tlnp | grep 9191
+# Find your add-on container name
+docker ps | grep dispatcharr
+
+# Check if port 9191 is listening (replace CONTAINER_NAME with actual name)
+docker exec CONTAINER_NAME netstat -tlnp | grep 9191
 # or
-docker exec addon_76e82d43_dispatcharr ss -tlnp | grep 9191
-# Check nginx port
-docker exec addon_76e82d43_dispatcharr ss -tlnp | grep nginx
-# Check all listening ports
-docker exec addon_76e82d43_dispatcharr netstat -tlnp
+docker exec CONTAINER_NAME ss -tlnp | grep 9191
+
+# You should see something like:
+# tcp  0  0  0.0.0.0:9191  0.0.0.0:*  LISTEN  <pid>/nginx
+# or
+# tcp  0  0  0.0.0.0:9191  0.0.0.0:*  LISTEN  <pid>/gunicorn
 ```
 
-You should see the service (nginx or uWSGI) listening on `0.0.0.0:9191`.
+**Critical**: The service MUST listen on `0.0.0.0:9191`, NOT `127.0.0.1:9191`. If you see `127.0.0.1:9191`, Ingress will not work.
+
+### Step 4: Common Issues and Solutions
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| **Service not binding to 0.0.0.0** | Ingress shows HA page or connection refused | Check logs - service may be binding to 127.0.0.1. The entrypoint script needs to respect `NGINX_PORT` or `GUNICORN_PORT` env vars |
+| **Service not started** | Add-on shows as "Stopped" | Check logs for startup errors. Ensure all required environment variables are set |
+| **Port conflict** | Service fails to start | Another process may be using port 9191. Check with `netstat` or `ss` |
+| **Wrong entrypoint** | Service starts but wrong port | Check logs for which entrypoint is being used. The run script tries `/app/docker/entrypoint.sh` first |
+| **Ingress shows blank/HA page** | Page loads but shows Home Assistant | Service may not be listening yet, or there's a routing issue. Wait 30-60 seconds after startup and refresh |
+
+### Step 5: Restart and Wait
+
+After making changes:
+1. **Stop** the add-on
+2. **Wait 10 seconds**
+3. **Start** the add-on
+4. **Wait 30-60 seconds** for the service to fully start
+5. **Refresh** the Ingress page (hard refresh: Cmd+Shift+R / Ctrl+Shift+R)
+
+### Step 6: Check Home Assistant Supervisor Logs
+
+If Ingress still doesn't work, check the Home Assistant Supervisor logs:
+- **Settings** → **System** → **Logs** → Look for errors related to "ingress" or the add-on name
 
 ## Technical Details
 

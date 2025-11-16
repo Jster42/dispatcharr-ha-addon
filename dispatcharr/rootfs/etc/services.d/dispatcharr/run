@@ -4,8 +4,19 @@ set -euo pipefail
 # Ensure DISPATCHARR_ENV is set for aio mode
 export DISPATCHARR_ENV="${DISPATCHARR_ENV:-aio}"
 
-# Verify Gunicorn will bind to the correct port for Ingress
+# Ingress configuration - service must bind to 0.0.0.0:9191 for Home Assistant Ingress
+export INGRESS_PORT=9191
 export GUNICORN_PORT=9191
+export GUNICORN_BIND="0.0.0.0:9191"
+
+# The actual entrypoint is /app/docker/entrypoint.sh (uses uWSGI + nginx)
+# Set NGINX_PORT to match ingress_port in config.yaml (9191)
+export NGINX_PORT=9191
+export NGINX_LISTEN="0.0.0.0:9191"
+
+# Additional environment variables that might be needed
+export PORT=9191
+export HOST=0.0.0.0
 
 # Debug: List all possible entrypoint locations
 echo "=== Searching for entrypoint scripts ===" >&2
@@ -16,19 +27,27 @@ for ep in /entrypoint.aio.sh /entrypoint.sh /app/docker/entrypoint.sh /docker-en
     fi
 done
 
-# The actual entrypoint is /app/docker/entrypoint.sh (uses uWSGI + nginx)
-# Set NGINX_PORT to match ingress_port in config.yaml (9191)
-export NGINX_PORT=9191
+echo "=== Ingress Configuration ===" >&2
+echo "INGRESS_PORT: $INGRESS_PORT" >&2
+echo "NGINX_PORT: $NGINX_PORT" >&2
+echo "GUNICORN_PORT: $GUNICORN_PORT" >&2
+echo "DISPATCHARR_ENV: $DISPATCHARR_ENV" >&2
 
 # Priority order: /app/docker/entrypoint.sh (actual) > entrypoint.aio.sh > entrypoint.sh
 if [ -f /app/docker/entrypoint.sh ]; then
-    echo "Starting Dispatcharr with /app/docker/entrypoint.sh (env: $DISPATCHARR_ENV, nginx_port: $NGINX_PORT)" >&2
+    echo "Starting Dispatcharr with /app/docker/entrypoint.sh" >&2
+    echo "  Environment: $DISPATCHARR_ENV" >&2
+    echo "  NGINX_PORT: $NGINX_PORT (should bind to 0.0.0.0:$NGINX_PORT)" >&2
     exec /app/docker/entrypoint.sh
 elif [ -f /entrypoint.aio.sh ]; then
-    echo "Starting Dispatcharr with /entrypoint.aio.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
+    echo "Starting Dispatcharr with /entrypoint.aio.sh" >&2
+    echo "  Environment: $DISPATCHARR_ENV" >&2
+    echo "  GUNICORN_PORT: $GUNICORN_PORT (should bind to 0.0.0.0:$GUNICORN_PORT)" >&2
     exec /entrypoint.aio.sh
 elif [ -f /entrypoint.sh ]; then
-    echo "Starting Dispatcharr with /entrypoint.sh (env: $DISPATCHARR_ENV, port: $GUNICORN_PORT)" >&2
+    echo "Starting Dispatcharr with /entrypoint.sh" >&2
+    echo "  Environment: $DISPATCHARR_ENV" >&2
+    echo "  GUNICORN_PORT: $GUNICORN_PORT (should bind to 0.0.0.0:$GUNICORN_PORT)" >&2
     exec /entrypoint.sh
 else
     echo "ERROR: No entrypoint script found. Checked:" >&2
