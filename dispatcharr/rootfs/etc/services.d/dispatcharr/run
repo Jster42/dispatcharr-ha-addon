@@ -37,6 +37,55 @@ if [ -f /app/docker/entrypoint.sh ]; then
     echo "  Environment: $DISPATCHARR_ENV" >&2
     echo "  DISPATCHARR_PORT: $DISPATCHARR_PORT (nginx will listen on 0.0.0.0:$DISPATCHARR_PORT)" >&2
     echo "  Note: The entrypoint will replace NGINX_PORT in nginx.conf with $DISPATCHARR_PORT" >&2
+    echo "  Note: We will patch nginx config to explicitly bind to 0.0.0.0 for Ingress compatibility" >&2
+    
+    # Start a background process to patch nginx config after init script runs
+    # This ensures nginx explicitly binds to 0.0.0.0:9191 for Ingress compatibility
+    # Note: We don't restrict to 172.30.32.2 as that IP can vary; listening on 0.0.0.0
+    # is sufficient since the container is isolated and only accessible via Ingress
+    (
+        # Wait for init script to create nginx config (init script runs early in entrypoint)
+        sleep 5
+        nginx_conf="/etc/nginx/sites-enabled/default"
+        
+        # Wait for config file to exist (init script creates it)
+        for i in {1..15}; do
+            if [ -f "$nginx_conf" ]; then
+                break
+            fi
+            sleep 1
+        done
+        
+        if [ -f "$nginx_conf" ]; then
+            # Check if it needs patching (init script creates "listen 9191;" we need "listen 0.0.0.0:9191;")
+            # In nginx, "listen 9191;" binds to all interfaces by default, but being explicit helps
+            if ! grep -q "listen[[:space:]]*0\.0\.0\.0:$DISPATCHARR_PORT" "$nginx_conf" 2>/dev/null; then
+                echo "Patching nginx config to explicitly bind to 0.0.0.0:$DISPATCHARR_PORT for Ingress" >&2
+                # Replace "listen 9191;" with "listen 0.0.0.0:9191;"
+                sed -i.bak "s/listen[[:space:]]*$DISPATCHARR_PORT;/listen 0.0.0.0:$DISPATCHARR_PORT;/g" "$nginx_conf" 2>/dev/null
+                sed -i.bak "s/listen[[:space:]]*$DISPATCHARR_PORT[[:space:]]*default_server;/listen 0.0.0.0:$DISPATCHARR_PORT default_server;/g" "$nginx_conf" 2>/dev/null
+                rm -f "${nginx_conf}.bak" 2>/dev/null || true
+                
+                # Reload nginx if it's already running to apply changes
+                if command -v nginx >/dev/null 2>&1 && pgrep nginx >/dev/null 2>&1; then
+                    echo "Reloading nginx to apply Ingress binding changes" >&2
+                    nginx -s reload 2>/dev/null || true
+                fi
+                
+                if grep -q "listen[[:space:]]*0\.0\.0\.0:$DISPATCHARR_PORT" "$nginx_conf" 2>/dev/null; then
+                    echo "✅ Nginx config patched successfully - listening on 0.0.0.0:$DISPATCHARR_PORT for Ingress" >&2
+                else
+                    echo "⚠️ Warning: Nginx config patching may have failed" >&2
+                fi
+            else
+                echo "Nginx config already has correct 0.0.0.0:$DISPATCHARR_PORT binding" >&2
+            fi
+        else
+            echo "⚠️ Warning: Nginx config file not found at $nginx_conf after waiting" >&2
+        fi
+    ) &
+    
+    # Start the entrypoint (this will block)
     exec /app/docker/entrypoint.sh
 elif [ -f /entrypoint.aio.sh ]; then
     echo "Starting Dispatcharr with /entrypoint.aio.sh" >&2
