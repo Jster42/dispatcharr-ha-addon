@@ -143,15 +143,45 @@ case "$METHOD" in
         
         # Check Home Assistant logs for ingress errors
         echo "12. Checking Home Assistant logs for ingress errors..."
-        $SSH_CMD "sudo journalctl -u hassio-supervisor --no-pager | grep -i 'ingress\|dispatcharr' | tail -20 || echo 'No ingress errors found'"
+        if $SSH_CMD "command -v journalctl >/dev/null 2>&1"; then
+            $SSH_CMD "sudo journalctl -u hassio-supervisor --no-pager 2>/dev/null | grep -i 'ingress\|dispatcharr' | tail -20 || echo 'No ingress errors found'"
+        else
+            echo "journalctl not available, trying alternative..."
+            $SSH_CMD "ha supervisor logs 2>/dev/null | grep -i 'ingress\|dispatcharr' | tail -20 || echo 'No ingress errors found'"
+        fi
+        echo ""
+        
+        # Check if Ingress proxy is running
+        echo "13. Checking Ingress proxy status..."
+        $SSH_CMD "$DOCKER_CMD ps | grep ingress || echo 'Ingress proxy container not found'"
+        echo ""
+        
+        # Test connection from Supervisor network
+        echo "14. Testing connection from Supervisor network to container..."
+        CONTAINER_IP=$($SSH_CMD "$DOCKER_CMD inspect $CONTAINER | grep -A 10 'Networks' | grep 'IPAddress' | head -1 | sed 's/.*\"IPAddress\": \"\([^\"]*\)\".*/\1/' || echo ''")
+        if [ -n "$CONTAINER_IP" ]; then
+            echo "Container IP: $CONTAINER_IP"
+            $SSH_CMD "curl -s -o /dev/null -w 'HTTP Status: %{http_code}\n' --max-time 5 http://$CONTAINER_IP:9191/ || echo 'Connection failed'"
+        else
+            echo "Could not determine container IP"
+        fi
         echo ""
         
         # Check addon config
-        echo "13. Checking addon configuration..."
+        echo "15. Checking addon configuration..."
         $SSH_CMD "sudo cat /data/addons/data/core_config_manager/dispatcharr/config.yaml 2>/dev/null | grep -E 'ingress|port' || echo 'Config not found in expected location'"
         echo ""
         
+        # Check recent access attempts
+        echo "16. Recent access attempts (last 5):"
+        $SSH_CMD "$DOCKER_CMD exec $CONTAINER tail -5 /var/log/nginx/access.log 2>/dev/null || echo 'No access log'"
+        echo ""
+        
         echo "=== Debugging complete ==="
+        echo ""
+        echo "Note: If you see 'connection refused' in browser but access logs show requests,"
+        echo "      this might be a reverse proxy or Ingress proxy timeout issue."
+        echo "      Try accessing directly via Home Assistant's internal network."
         ;;
         
     api)
