@@ -74,8 +74,22 @@ if [ -f /app/docker/entrypoint.sh ]; then
                 
                 if grep -q "listen[[:space:]]*0\.0\.0\.0:$DISPATCHARR_PORT" "$nginx_conf" 2>/dev/null; then
                     echo "✅ Nginx config patched successfully - listening on 0.0.0.0:$DISPATCHARR_PORT for Ingress" >&2
+                    # Verify nginx is actually listening on the correct port
+                    sleep 2
+                    if command -v ss >/dev/null 2>&1; then
+                        echo "Verifying nginx is listening on port $DISPATCHARR_PORT..." >&2
+                        ss -tlnp | grep ":$DISPATCHARR_PORT " >&2 || echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
+                    elif command -v netstat >/dev/null 2>&1; then
+                        echo "Verifying nginx is listening on port $DISPATCHARR_PORT..." >&2
+                        netstat -tlnp | grep ":$DISPATCHARR_PORT " >&2 || echo "⚠️ Warning: nginx may not be listening on port $DISPATCHARR_PORT" >&2
+                    fi
+                    # Show the actual nginx config for debugging
+                    echo "Current nginx listen directive:" >&2
+                    grep "listen" "$nginx_conf" | head -1 >&2
                 else
                     echo "⚠️ Warning: Nginx config patching may have failed" >&2
+                    echo "Current nginx config listen directive:" >&2
+                    grep "listen" "$nginx_conf" | head -1 >&2
                 fi
             else
                 echo "Nginx config already has correct 0.0.0.0:$DISPATCHARR_PORT binding" >&2
