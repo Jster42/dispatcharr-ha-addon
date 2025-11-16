@@ -1,5 +1,5 @@
 name: Dispatcharr
-version: "1.0.16-dev"
+version: "1.0.17-dev"
 slug: dispatcharr
 description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
 arch:

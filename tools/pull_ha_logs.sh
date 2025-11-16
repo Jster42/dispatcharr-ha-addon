@@ -55,9 +55,32 @@ case "$METHOD" in
         ;;
         
     api)
+        # Load .env file if it exists (in repo root or script directory)
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+        if [ -f "$REPO_ROOT/.env" ]; then
+            set -a
+            source "$REPO_ROOT/.env"
+            set +a
+        elif [ -f "$SCRIPT_DIR/.env" ]; then
+            set -a
+            source "$SCRIPT_DIR/.env"
+            set +a
+        fi
+        
+        if [ -z "$HOST" ]; then
+            HOST="${HA_URL:-}"
+        fi
+        
         if [ -z "$HOST" ]; then
             echo "Usage: $0 api <ha_url> [token]"
+            echo "   OR: Set HA_URL and HA_TOKEN in .env file"
+            echo ""
             echo "Example: $0 api http://homeassistant.local:8123 eyJ0eXAiOiJKV1QiLCJhbGc..."
+            echo ""
+            echo ".env file format:"
+            echo "  HA_URL=http://homeassistant.local:8123"
+            echo "  HA_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGc..."
             echo ""
             echo "To get a token:"
             echo "1. Go to Home Assistant → Profile → Long-Lived Access Tokens"
@@ -65,9 +88,10 @@ case "$METHOD" in
             exit 1
         fi
         
-        TOKEN="${3:-}"
+        TOKEN="${3:-${HA_TOKEN:-}}"
         if [ -z "$TOKEN" ]; then
             echo "Error: API token required"
+            echo "Either provide it as argument or set HA_TOKEN in .env file"
             exit 1
         fi
         
