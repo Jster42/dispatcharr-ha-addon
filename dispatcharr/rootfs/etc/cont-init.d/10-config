@@ -88,6 +88,29 @@ if [ -f "$NGINX_TEMPLATE" ] && grep -q "listen NGINX_PORT" "$NGINX_TEMPLATE" 2>/
         echo "sendfile settings already present" >&2
     fi
     
+    # Ensure WebSocket location has proper headers for Ingress compatibility
+    # Home Assistant Ingress may not support WebSocket upgrades, but we should still configure it correctly
+    if grep -q "location /ws/" "$NGINX_TEMPLATE" 2>/dev/null; then
+        echo "Checking WebSocket location configuration..." >&2
+        # Ensure WebSocket location has all necessary headers for proxy compatibility
+        if ! grep -q "proxy_set_header Host" "$NGINX_TEMPLATE" 2>/dev/null || ! grep -A 10 "location /ws/" "$NGINX_TEMPLATE" 2>/dev/null | grep -q "proxy_set_header Host"; then
+            echo "Adding missing headers to WebSocket location for Ingress compatibility..." >&2
+            # Add Host and other headers after Connection Upgrade
+            sed -i '/location \/ws\/ {/,/^    }/{
+                /proxy_set_header Connection "Upgrade";/a\
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Ingress-Path $http_x_ingress_path;
+        proxy_read_timeout 86400;
+' "$NGINX_TEMPLATE" 2>/dev/null || true
+            echo "WebSocket headers added" >&2
+        else
+            echo "WebSocket location already has required headers" >&2
+        fi
+    fi
+    
     echo "Nginx template patched - will bind to 0.0.0.0:$DISPATCHARR_PORT after init script runs" >&2
 fi
 
