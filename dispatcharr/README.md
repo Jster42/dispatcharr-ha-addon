@@ -11,3 +11,18 @@ This add-on wraps Dispatcharr with Ingress on port 9191.
 ## Notes
 - If Dispatcharr is not installed in the base image, switch the Dockerfile to use the upstream Dispatcharr image and remove the placeholder.
 - Data persists in `/data` inside the add-on container.
+
+## Dev image entrypoint discovery (local)
+Run these on your dev machine to detect the correct start command for `dispatcharr/dispatcharr:dev`, then update the add-on:
+
+```bash
+cd /Users/jeffrey.sterner/Downloads/dispatcharr-ha-addon
+chmod +x tools/*.sh
+./tools/discover_dispatcharr_entrypoint.sh
+# Suppose it prints that /entrypoint.sh works, then do:
+./tools/update_addon_run.sh '/entrypoint.sh'
+git add dispatcharr/rootfs/etc/services.d/dispatcharr/run
+git commit -m "chore(addon): use /entrypoint.sh for dev image"
+git push
+```
+
