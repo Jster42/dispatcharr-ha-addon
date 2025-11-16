@@ -54,25 +54,45 @@ ADDON_INFO=$(curl -s -H "Authorization: Bearer $HA_TOKEN" \
 
 if echo "$ADDON_INFO" | grep -q "401\|Unauthorized"; then
     echo "Error: Authentication failed (401)"
+    echo "Response:"
+    echo "$ADDON_INFO" | head -10
     exit 1
+fi
+
+# Debug: show what we got
+if [ "$USE_JQ" = true ]; then
+    echo "Debug: API response structure:"
+    echo "$ADDON_INFO" | jq 'keys' 2>/dev/null || echo "$ADDON_INFO" | head -5
+    echo ""
 fi
 
 # Try to find the addon slug (could be local/dispatcharr or just dispatcharr)
 ADDON_SLUG_FOUND=""
 if [ "$USE_JQ" = true ]; then
-    ADDON_SLUG_FOUND=$(echo "$ADDON_INFO" | jq -r '.data.addons[] | select(.slug == "dispatcharr" or .slug == "local_dispatcharr" or .name == "Dispatcharr") | .slug' 2>/dev/null | head -1)
+    # Try different possible response structures
+    ADDON_SLUG_FOUND=$(echo "$ADDON_INFO" | jq -r '.data.addons[]? | select(.slug == "dispatcharr" or .slug == "local_dispatcharr" or .name == "Dispatcharr") | .slug' 2>/dev/null | head -1)
+    
+    # If that didn't work, try .data directly
+    if [ -z "$ADDON_SLUG_FOUND" ]; then
+        ADDON_SLUG_FOUND=$(echo "$ADDON_INFO" | jq -r '.data[]? | select(.slug == "dispatcharr" or .slug == "local_dispatcharr" or .name == "Dispatcharr") | .slug' 2>/dev/null | head -1)
+    fi
 fi
 
 if [ -z "$ADDON_SLUG_FOUND" ]; then
-    # Try common variations
+    # Try common variations directly
+    echo "Trying common addon slug variations..."
     for slug in "local/dispatcharr" "dispatcharr" "local_dispatcharr"; do
+        echo "  Trying: $slug"
         TEST_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $HA_TOKEN" \
              -H "Content-Type: application/json" \
              "$HA_URL/api/hassio/addons/$slug/info" 2>&1)
         HTTP_STATUS=$(echo "$TEST_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
         if [ "$HTTP_STATUS" = "200" ]; then
             ADDON_SLUG_FOUND="$slug"
+            echo "  ✅ Found: $slug"
             break
+        else
+            echo "  ❌ Not found (HTTP $HTTP_STATUS)"
         fi
     done
 fi
