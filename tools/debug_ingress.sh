@@ -18,11 +18,13 @@ fi
 case "$METHOD" in
     ssh)
         HOST="${2:-}"
-        SSH_USER="${3:-root}"
+        SSH_USER="${3:-hassio}"
         SSH_KEY="${4:-}"
         
         if [ -z "$HOST" ]; then
             echo "Usage: $0 ssh <host> [user] [ssh_key]"
+            echo "Default user: hassio"
+            echo "Example: $0 ssh homeassistant.local"
             exit 1
         fi
         
