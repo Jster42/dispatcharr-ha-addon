@@ -1,5 +1,5 @@
 name: Dispatcharr
-version: "1.0.62-dev"
+version: "1.0.63-dev"
 slug: dispatcharr
 description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
 arch:
@@ -17,11 +17,13 @@ options:
   password: ""
   epg_url: https://epg.iptv.cat/epg.xml
   timezone: UTC
+  nas_symlinks: false
 schema:
   username: str
   password: str?
   epg_url: url
   timezone: str
+  nas_symlinks: bool?
 ports:
   9191/tcp: 9191
 ports_description:

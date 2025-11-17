@@ -1,0 +1,54 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+CONFIG=/data/options.json
+
+# Optional: Create symlinks to redirect /data directories to NAS mount
+# This script checks if /media/nas_data exists and creates symlinks if needed
+# To enable, set nas_symlinks: true in addon options
+
+# Read nas_symlinks option from config
+NAS_SYMLINKS=false
+if [ -f "$CONFIG" ]; then
+    NAS_SYMLINKS=$(jq -r '.nas_symlinks // false' "$CONFIG")
+fi
+
+# Check if NAS mount is available and symlinks should be created
+if [ "$NAS_SYMLINKS" = "true" ] && [ -d "/media/nas_data" ]; then
+    echo "Creating symlinks to NAS mount at /media/nas_data..." >&2
+    
+    # Create directories on NAS if they don't exist
+    mkdir -p /media/nas_data/dispatcharr/recordings
+    mkdir -p /media/nas_data/dispatcharr/epgs
+    mkdir -p /media/nas_data/dispatcharr/logos
+    
+    # Backup existing directories if they exist and are not already symlinks
+    if [ -d "/data/recordings" ] && [ ! -L "/data/recordings" ]; then
+        echo "Backing up existing /data/recordings..." >&2
+        mv /data/recordings /data/recordings.backup.$(date +%s) 2>/dev/null || true
+    fi
+    if [ -d "/data/epgs" ] && [ ! -L "/data/epgs" ]; then
+        echo "Backing up existing /data/epgs..." >&2
+        mv /data/epgs /data/epgs.backup.$(date +%s) 2>/dev/null || true
+    fi
+    if [ -d "/data/logos" ] && [ ! -L "/data/logos" ]; then
+        echo "Backing up existing /data/logos..." >&2
+        mv /data/logos /data/logos.backup.$(date +%s) 2>/dev/null || true
+    fi
+    
+    # Remove existing symlinks or directories
+    rm -rf /data/recordings /data/epgs /data/logos 2>/dev/null || true
+    
+    # Create symlinks
+    ln -s /media/nas_data/dispatcharr/recordings /data/recordings
+    ln -s /media/nas_data/dispatcharr/epgs /data/epgs
+    ln -s /media/nas_data/dispatcharr/logos /data/logos
+    
+    echo "Symlinks created successfully:" >&2
+    ls -la /data/ | grep -E "(recordings|epgs|logos)" >&2 || true
+else
+    if [ "$NAS_SYMLINKS" = "true" ]; then
+        echo "Warning: nas_symlinks=true but /media/nas_data not found. Skipping symlink creation." >&2
+        echo "  Make sure your NAS mount is at /media/nas_data on the host." >&2
+    fi
+fi
+

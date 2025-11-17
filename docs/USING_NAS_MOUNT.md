@@ -70,11 +70,42 @@ If your `nas_data` is mounted at `/media/nas_data` (which is your case):
    docker exec <container_id> ls -la /media/nas_data
    ```
 
-4. **Configure Dispatcharr to use this path** in its settings for:
-   - Media storage
-   - EPG data
-   - Recordings
-   - Any other file storage needs
+4. **Use symlinks to redirect Dispatcharr's data directories to NAS:**
+
+   Dispatcharr uses hardcoded paths under `/data` (no storage settings UI). To use your NAS for storage, create symlinks inside the container:
+
+   ```bash
+   # Find the Dispatcharr container
+   docker ps | grep dispatcharr
+   
+   # Create directories on NAS (if they don't exist)
+   # You can do this from the host or inside the container
+   
+   # Create symlinks inside the container (run these commands)
+   docker exec -it <container_id> sh -c "
+     # Backup existing directories (if they have data)
+     mv /data/recordings /data/recordings.backup 2>/dev/null || true
+     mv /data/epgs /data/epgs.backup 2>/dev/null || true
+     mv /data/logos /data/logos.backup 2>/dev/null || true
+     
+     # Create directories on NAS
+     mkdir -p /media/nas_data/dispatcharr/recordings
+     mkdir -p /media/nas_data/dispatcharr/epgs
+     mkdir -p /media/nas_data/dispatcharr/logos
+     
+     # Create symlinks
+     ln -s /media/nas_data/dispatcharr/recordings /data/recordings
+     ln -s /media/nas_data/dispatcharr/epgs /data/epgs
+     ln -s /media/nas_data/dispatcharr/logos /data/logos
+     
+     # Restore data from backup if needed
+     cp -r /data/recordings.backup/* /data/recordings/ 2>/dev/null || true
+     cp -r /data/epgs.backup/* /data/epgs/ 2>/dev/null || true
+     cp -r /data/logos.backup/* /data/logos/ 2>/dev/null || true
+   "
+   ```
+
+   **Note:** These symlinks will be lost when the container restarts. See "Making Symlinks Persistent" below for a permanent solution.
 
 **You're all set!** Since your mount is at `/media/nas_data`, it's already accessible to Dispatcharr at the same path.
 
@@ -124,16 +155,42 @@ Once the mount is accessible at `/media/nas_data` on the host:
 
 3. **If accessible, you should see your NAS files listed**
 
-## Configuring Dispatcharr to Use the Mount
+## Making Symlinks Persistent
 
-In Dispatcharr's web interface:
+The addon includes an automatic symlink creation feature that you can enable via the addon options:
 
-1. Go to **Settings** → **Storage** (or similar)
-2. Set paths to use `/media/nas_data`:
-   - Media directory: `/media/nas_data/media`
-   - EPG directory: `/media/nas_data/epg`
-   - Recordings: `/media/nas_data/recordings`
-   - Or whatever structure you prefer
+1. **Enable automatic symlinks (Recommended):**
+
+   - Go to **Settings** → **Add-ons** → **Dispatcharr** → **Configuration**
+   - Add `nas_symlinks: true` to your configuration:
+     ```yaml
+     username: jeff
+     password: ""
+     epg_url: https://epg.iptv.cat/epg.xml
+     timezone: UTC
+     nas_symlinks: true
+     ```
+   - Click **Save** and restart the addon
+   - The symlinks will be automatically created on every startup
+
+2. **Manual symlink creation (if you prefer not to use the option):**
+
+   ```bash
+   # Save this as recreate_symlinks.sh on your Home Assistant host
+   #!/bin/bash
+   CONTAINER=$(docker ps | grep dispatcharr | awk '{print $1}' | head -1)
+   if [ -n "$CONTAINER" ]; then
+     docker exec $CONTAINER sh -c "
+       rm -rf /data/recordings /data/epgs /data/logos
+       mkdir -p /media/nas_data/dispatcharr/{recordings,epgs,logos}
+       ln -s /media/nas_data/dispatcharr/recordings /data/recordings
+       ln -s /media/nas_data/dispatcharr/epgs /data/epgs
+       ln -s /media/nas_data/dispatcharr/logos /data/logos
+     "
+   fi
+   ```
+
+   Run this script after each addon restart, or set it up as a cron job or Home Assistant automation.
 
 ## Troubleshooting
 
@@ -177,24 +234,46 @@ If you get permission errors:
      -o rw,noatime,soft,timeo=30,uid=1000,gid=1000
    ```
 
-## Example: Complete Setup
+## Example: Complete Setup for /media/nas_data
 
-If your `nas_data` NFS mount is at `/mnt/nas_data`:
+Since your `nas_data` is already at `/media/nas_data`:
 
 ```bash
-# 1. Create symlink to make it accessible under /media/
+# 1. Verify mount is accessible
 ssh hassio@homeassistant.local
-sudo ln -s /mnt/nas_data /media/nas_data
-
-# 2. Verify
 ls -la /media/nas_data
 
-# 3. Restart Dispatcharr addon
+# 2. Start Dispatcharr addon (if not running)
 
-# 4. Verify from container
-docker exec <dispatcharr_container> ls -la /media/nas_data
+# 3. Find container
+CONTAINER=$(docker ps | grep dispatcharr | awk '{print $1}' | head -1)
 
-# 5. Configure Dispatcharr to use /media/nas_data in its settings
+# 4. Verify NAS is accessible from container
+docker exec $CONTAINER ls -la /media/nas_data
+
+# 5. Create directories on NAS and symlinks
+docker exec -it $CONTAINER sh -c "
+  # Backup existing data (if any)
+  [ -d /data/recordings ] && mv /data/recordings /data/recordings.backup || true
+  [ -d /data/epgs ] && mv /data/epgs /data/epgs.backup || true
+  [ -d /data/logos ] && mv /data/logos /data/logos.backup || true
+  
+  # Create directories on NAS
+  mkdir -p /media/nas_data/dispatcharr/{recordings,epgs,logos}
+  
+  # Create symlinks
+  ln -s /media/nas_data/dispatcharr/recordings /data/recordings
+  ln -s /media/nas_data/dispatcharr/epgs /data/epgs
+  ln -s /media/nas_data/dispatcharr/logos /data/logos
+  
+  # Restore data if backed up
+  [ -d /data/recordings.backup ] && cp -r /data/recordings.backup/* /data/recordings/ || true
+  [ -d /data/epgs.backup ] && cp -r /data/epgs.backup/* /data/epgs/ || true
+  [ -d /data/logos.backup ] && cp -r /data/logos.backup/* /data/logos/ || true
+"
+
+# 6. Verify symlinks
+docker exec $CONTAINER ls -la /data/ | grep -E "(recordings|epgs|logos)"
 ```
 
-That's it! Your `nas_data` mount will now be accessible to Dispatcharr.
+**Note:** Remember to recreate the symlinks after each addon restart, or set up the persistent script mentioned above.

@@ -5,6 +5,11 @@ All notable changes to this add-on will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.63-dev] - 2025-11-16
+
+### Changed
+- confirm /media/nas_data is already accessible
+
 ## [1.0.62-dev] - 2025-11-16
 
 ### Changed
