@@ -4,7 +4,7 @@ A native Home Assistant add-on for [Dispatcharr](https://github.com/Dispatcharr/
 
 ## Features
 
-- ✅ **Ingress Support**: Access Dispatcharr directly from Home Assistant's sidebar
+- ✅ **Direct Port Access**: Access Dispatcharr via `http://homeassistant.local:9191`
 - ✅ **Hardware Acceleration**: Automatic GPU passthrough for Intel/AMD VAAPI/QSV transcoding
 - ✅ **Dev Branch Support**: Runs the latest development branch with all-in-one Redis/Celery/Gunicorn stack
 - ✅ **Persistent Storage**: All data stored in Home Assistant's `/data` directory
@@ -19,7 +19,8 @@ A native Home Assistant add-on for [Dispatcharr](https://github.com/Dispatcharr/
 3. Add this repository URL: `https://github.com/Jster42/dispatcharr-ha-addon`
 4. Click **Install** on the Dispatcharr add-on
 5. Configure your options (see Configuration below)
-6. Click **Start** and then **Open Web UI**
+6. Click **Start**
+7. Access Dispatcharr at `http://homeassistant.local:9191` (or your HA IP address)
 
 ### Option 2: Local Installation
 
@@ -40,6 +41,15 @@ Configure the add-on through the Home Assistant add-on options panel:
 | `timezone` | System timezone | `UTC` | No |
 
 After changing options, restart the add-on for changes to take effect.
+
+## Accessing Dispatcharr
+
+Once the add-on is started, access Dispatcharr at:
+
+- `http://homeassistant.local:9191`
+- `http://<your-ha-ip>:9191`
+
+The web interface will be available on port 9191. You can bookmark this URL or add it to your browser favorites.
 
 ## Hardware Acceleration
 
@@ -79,83 +89,43 @@ You may see a warning like:
 - **VAAPI/QSV unavailable**: Check that Intel/AMD GPU drivers are properly loaded on the host system
 - **Acceleration not working**: Verify the GPU is accessible by checking `ls -la /dev/dri` on the Home Assistant host
 
-## Ingress Troubleshooting
+## Troubleshooting
 
-If Ingress is not working (e.g., showing "Home Assistant" page, connection errors, or blank page):
+### Service Not Accessible
 
-### Step 1: Check Add-on Logs
+If you cannot access Dispatcharr at `http://homeassistant.local:9191`:
 
-1. In Home Assistant: **Settings** → **Add-ons** → **Dispatcharr** → **Log**
-2. Look for these key messages:
-   - `=== Ingress Configuration ===` - Shows port configuration
-   - `Starting Dispatcharr with /app/docker/entrypoint.sh` or `/entrypoint.aio.sh`
-   - `NGINX_PORT: 9191` or `GUNICORN_PORT: 9191`
-   - Any error messages about port binding or service startup
+1. **Check add-on status**: Ensure the add-on is started (not stopped)
+2. **Check add-on logs**: Go to **Settings** → **Add-ons** → **Dispatcharr** → **Log** and look for errors
+3. **Verify port is exposed**: The add-on should expose port 9191. Check in **Settings** → **Add-ons** → **Dispatcharr** → **Info** that port 9191 is listed
+4. **Check firewall**: Ensure your firewall allows connections to port 9191
+5. **Try IP address**: Instead of `homeassistant.local`, try using your Home Assistant's IP address directly
 
-### Step 2: Verify Service is Running and Listening
+### Service Not Starting
 
-In the add-on logs, you should see the service starting. The service must bind to `0.0.0.0:9191` (not `127.0.0.1:9191`) for Ingress to work.
+If the add-on fails to start:
 
-**For nginx/uWSGI setup** (using `/app/docker/entrypoint.sh`):
-- Look for nginx startup messages
-- Should show nginx listening on port 9191
+1. **Check logs**: Look for error messages in the add-on logs
+2. **Check configuration**: Verify all required options are set (username, password)
+3. **Check port conflict**: Ensure no other service is using port 9191
+4. **Restart Home Assistant**: Sometimes a Home Assistant restart helps resolve issues
 
-**For Gunicorn setup** (using `/entrypoint.aio.sh`):
-- Look for: `Starting Gunicorn...` or `Gunicorn started`
-- Should show binding to `0.0.0.0:9191`
-
-### Step 3: Verify Port Binding (Advanced)
-
-If you have SSH access to Home Assistant, verify the service is listening correctly:
-
-```bash
-# Find your add-on container name
-docker ps | grep dispatcharr
-
-# Check if port 9191 is listening (replace CONTAINER_NAME with actual name)
-docker exec CONTAINER_NAME netstat -tlnp | grep 9191
-# or
-docker exec CONTAINER_NAME ss -tlnp | grep 9191
-
-# You should see something like:
-# tcp  0  0  0.0.0.0:9191  0.0.0.0:*  LISTEN  <pid>/nginx
-# or
-# tcp  0  0  0.0.0.0:9191  0.0.0.0:*  LISTEN  <pid>/gunicorn
-```
-
-**Critical**: The service MUST listen on `0.0.0.0:9191`, NOT `127.0.0.1:9191`. If you see `127.0.0.1:9191`, Ingress will not work.
-
-### Step 4: Common Issues and Solutions
+### Common Issues
 
 | Issue | Symptom | Solution |
 |-------|---------|----------|
-| **Service not binding to 0.0.0.0** | Ingress shows HA page or connection refused | Check logs - service may be binding to 127.0.0.1. The entrypoint script needs to respect `NGINX_PORT` or `GUNICORN_PORT` env vars |
-| **Service not started** | Add-on shows as "Stopped" | Check logs for startup errors. Ensure all required environment variables are set |
-| **Port conflict** | Service fails to start | Another process may be using port 9191. Check with `netstat` or `ss` |
-| **Wrong entrypoint** | Service starts but wrong port | Check logs for which entrypoint is being used. The run script tries `/app/docker/entrypoint.sh` first |
-| **Ingress shows blank/HA page** | Page loads but shows Home Assistant | Service may not be listening yet, or there's a routing issue. Wait 30-60 seconds after startup and refresh |
-
-### Step 5: Restart and Wait
-
-After making changes:
-1. **Stop** the add-on
-2. **Wait 10 seconds**
-3. **Start** the add-on
-4. **Wait 30-60 seconds** for the service to fully start
-5. **Refresh** the Ingress page (hard refresh: Cmd+Shift+R / Ctrl+Shift+R)
-
-### Step 6: Check Home Assistant Supervisor Logs
-
-If Ingress still doesn't work, check the Home Assistant Supervisor logs:
-- **Settings** → **System** → **Logs** → Look for errors related to "ingress" or the add-on name
+| **Port already in use** | Add-on fails to start | Check if another add-on or service is using port 9191 |
+| **Service not responding** | Connection refused | Wait 30-60 seconds after starting, services need time to initialize |
+| **Wrong port** | Can't connect | Verify you're using port 9191, not 8123 (HA's port) |
+| **Firewall blocking** | Connection timeout | Check firewall rules to allow port 9191 |
 
 ## Technical Details
 
 ### Architecture
 
 - **Base Image**: `ghcr.io/dispatcharr/dispatcharr:dev`
-- **Entrypoint**: Uses `/entrypoint.aio.sh` which starts Redis, Celery, and Gunicorn automatically
-- **Port**: `9191` (Ingress, no host port exposure needed)
+- **Entrypoint**: Uses `/app/docker/entrypoint.sh` which starts Redis, Celery, nginx, and uWSGI automatically
+- **Port**: `9191` (exposed directly, not via Ingress)
 - **Environment**: Runs in `aio` (all-in-one) mode with embedded Redis and Celery
 
 ### Services
@@ -164,7 +134,8 @@ The add-on automatically starts these services:
 
 - **Redis**: Broker for Celery tasks
 - **Celery**: Background task worker for EPG processing
-- **Gunicorn**: Django application server
+- **nginx**: Reverse proxy and web server
+- **uWSGI**: Django application server
 
 ### Data Persistence
 
@@ -178,7 +149,7 @@ All Dispatcharr data is stored in `/data` inside the container, which is mapped 
 
 ## Version Management
 
-This add-on uses automatic version bumping on each commit (via git pre-commit hook). Versions follow semantic versioning with a `-dev` suffix (e.g., `1.0.42-dev`).
+This add-on uses automatic version bumping on each commit (via git pre-commit hook). Versions follow semantic versioning with a `-dev` suffix (e.g., `1.0.49-dev`).
 
 To manually bump the version:
 
@@ -221,4 +192,3 @@ git push
 ## License
 
 This add-on is provided as-is. Dispatcharr itself maintains its own license.
-

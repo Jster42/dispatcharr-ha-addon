@@ -11,11 +11,12 @@ This repository contains a native Home Assistant add-on for [Dispatcharr](https:
 2. Click the **⋮** menu → **Repositories**
 3. Add this repository: `https://github.com/Jster42/dispatcharr-ha-addon`
 4. Install the **Dispatcharr** add-on
-5. Configure and start!
+5. Configure and start
+6. Access at `http://homeassistant.local:9191`
 
 ## Features
 
-- ✅ **Ingress Support**: Access Dispatcharr directly from Home Assistant's sidebar
+- ✅ **Direct Port Access**: Access Dispatcharr via port 9191
 - ✅ **Hardware Acceleration**: Automatic GPU passthrough for Intel/AMD VAAPI/QSV transcoding
 - ✅ **Dev Branch**: Runs the latest development branch with all-in-one Redis/Celery/Gunicorn stack
 - ✅ **Persistent Storage**: All data stored in Home Assistant's persistent storage
@@ -33,4 +34,3 @@ See the [add-on README](dispatcharr/README.md) for detailed installation instruc
 ## License
 
 This add-on is provided as-is. Dispatcharr itself maintains its own license.
-
