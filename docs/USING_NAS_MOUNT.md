@@ -45,26 +45,38 @@ The Dispatcharr addon has `map: - media:rw` configured, which means:
 - **If your mount is at `/media/nas_data`**: It will be accessible at `/media/nas_data` inside the Dispatcharr container
 - **If your mount is at `/mnt/nas_data`**: You may need to create a symlink or remount it under `/media/`
 
-### Option 1: Mount is Already Under /media/
+### Option 1: Mount is Already Under /media/ ✅ (Your Setup)
 
-If your `nas_data` is mounted at `/media/nas_data`:
+If your `nas_data` is mounted at `/media/nas_data` (which is your case):
 
-1. **Verify it's accessible:**
+1. **Verify it's accessible on host:**
    ```bash
    # From Home Assistant host
    ls -la /media/nas_data
    ```
 
-2. **In Dispatcharr container, it will be at:**
+2. **In Dispatcharr container, it will automatically be at:**
    ```
    /media/nas_data
    ```
+   This works because the addon has `map: - media:rw` which maps `/media` from host to `/media` in container.
 
-3. **Configure Dispatcharr to use this path** in its settings for:
+3. **Verify from Dispatcharr container:**
+   ```bash
+   # Find container
+   docker ps | grep dispatcharr
+   
+   # Check access
+   docker exec <container_id> ls -la /media/nas_data
+   ```
+
+4. **Configure Dispatcharr to use this path** in its settings for:
    - Media storage
    - EPG data
    - Recordings
    - Any other file storage needs
+
+**You're all set!** Since your mount is at `/media/nas_data`, it's already accessible to Dispatcharr at the same path.
 
 ### Option 2: Mount is Under /mnt/ or Another Location
 
