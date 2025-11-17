@@ -5,6 +5,16 @@ All notable changes to this add-on will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.56-dev] - 2025-11-16
+
+### Fixed
+- rewrite CHANGELOG update with macOS-compatible approach
+
+## [1.0.55-dev] - 2025-11-16
+
+### Fixed
+- improve CHANGELOG update logic for macOS compatibility
+
 ## [1.0.3-dev] - 2025-11-16
 
 ### Changed
