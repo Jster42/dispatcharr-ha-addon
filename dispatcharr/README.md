@@ -147,6 +147,91 @@ All Dispatcharr data is stored in `/data` inside the container, which is mapped 
 - User settings
 - Database files
 
+## Mounting NAS Shares
+
+To use a NAS share for storing media files or other data with Dispatcharr, you need to mount the share at the Home Assistant host level, then it will be accessible via the `media` mount point.
+
+### Option 1: Using Samba/CIFS Add-on (Recommended)
+
+1. **Install the Samba/CIFS add-on:**
+   - Go to **Settings** → **Add-ons** → **Add-on Store**
+   - Search for "Samba share" or "CIFS"
+   - Install the add-on
+
+2. **Configure the Samba/CIFS add-on:**
+   - Set the share path (e.g., `/media/dispatcharr`)
+   - Configure your NAS connection details:
+     - **Server**: Your NAS IP address (e.g., `192.168.1.100`)
+     - **Share**: Share name (e.g., `media`)
+     - **Username**: NAS username
+     - **Password**: NAS password
+     - **Workgroup**: Usually `WORKGROUP` (default)
+
+3. **Start the Samba/CIFS add-on**
+
+4. **Access in Dispatcharr:**
+   - The mounted share will be available at `/media/dispatcharr` inside the Dispatcharr container
+   - Configure Dispatcharr to use this path for media storage
+
+### Option 2: Manual Mount via SSH
+
+If you prefer to mount manually or use NFS:
+
+1. **SSH into Home Assistant:**
+   ```bash
+   ssh hassio@homeassistant.local
+   ```
+
+2. **Create mount point:**
+   ```bash
+   sudo mkdir -p /media/dispatcharr
+   ```
+
+3. **Mount the share:**
+
+   **For Samba/CIFS:**
+   ```bash
+   sudo mount -t cifs //NAS_IP/share_name /media/dispatcharr -o username=your_username,password=your_password,uid=1000,gid=1000
+   ```
+
+   **For NFS:**
+   ```bash
+   sudo mount -t nfs4 NAS_IP:/share_name /media/dispatcharr
+   ```
+
+4. **Make mount persistent (optional):**
+   Add to `/etc/fstab`:
+   ```
+   //NAS_IP/share_name /media/dispatcharr cifs username=your_username,password=your_password,uid=1000,gid=1000 0 0
+   ```
+
+### Option 3: Using Network Storage Add-on
+
+Some Home Assistant installations have a "Network Storage" add-on that can mount shares. Check your Add-on Store for available options.
+
+### Verifying the Mount
+
+After mounting, verify it's accessible:
+
+```bash
+# From Home Assistant host
+ls -la /media/dispatcharr
+
+# From Dispatcharr container (if addon is running)
+docker exec <container_name> ls -la /media/dispatcharr
+```
+
+### Using the Mounted Share in Dispatcharr
+
+Once mounted, the share is available at `/media/dispatcharr` inside the Dispatcharr container. You can:
+
+- Store media files for transcoding
+- Store EPG data
+- Store channel recordings
+- Configure Dispatcharr to use this path in its settings
+
+**Note:** The `media` mount point in the addon configuration (`map: - media:rw`) maps to `/media` on the Home Assistant host, so any shares mounted under `/media/` on the host will be accessible in the container.
+
 ## Version Management
 
 This add-on uses automatic version bumping on each commit (via git pre-commit hook). Versions follow semantic versioning with a `-dev` suffix (e.g., `1.0.49-dev`).
