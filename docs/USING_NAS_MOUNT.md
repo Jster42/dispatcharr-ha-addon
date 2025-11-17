@@ -6,10 +6,11 @@ If you already have an NFS mount in Home Assistant (e.g., `nas_data`), here's ho
 
 Home Assistant typically mounts network shares under `/media/` or `/mnt/`. 
 
-Your `nas_data` mount is likely at one of these locations:
+If you see `nas_data` in Home Assistant's media browser (e.g., `media-source://media_source/local/nas_data`), it's configured as a media source and is likely mounted at one of these locations:
 - `/media/nas_data`
 - `/mnt/nas_data`
 - `/share/nas_data`
+- `/config/media/nas_data` (if configured as a local media source)
 
 ## Checking Your Mount Location
 
@@ -25,9 +26,16 @@ mount | grep nas_data
 # Or check /etc/fstab
 cat /etc/fstab | grep nas_data
 
-# Or check /media and /mnt directories
+# Check common mount locations
 ls -la /media/
 ls -la /mnt/
+ls -la /share/
+ls -la /config/media/  # If using Home Assistant media source
+
+# Check Home Assistant media source configuration
+cat /config/configuration.yaml | grep -A 10 media_source
+# or
+cat /config/configuration.yaml | grep nas_data
 ```
 
 ## Using with Dispatcharr
