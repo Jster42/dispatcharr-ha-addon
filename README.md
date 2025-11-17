@@ -24,7 +24,8 @@ This repository contains a native Home Assistant add-on for [Dispatcharr](https:
 
 ## Documentation
 
-See the [add-on README](dispatcharr/README.md) for detailed installation instructions, configuration options, GPU acceleration details, and troubleshooting.
+- **[Add-on README](dispatcharr/README.md)**: Detailed installation instructions, configuration options, GPU acceleration details, and troubleshooting
+- **[NAS Mounting Guide](docs/MOUNTING_NAS.md)**: Comprehensive guide for mounting network storage (NAS) shares in Home Assistant for use with Dispatcharr
 
 ## Support
 
