@@ -2,36 +2,29 @@
 
 [![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-blue.svg)](https://www.home-assistant.io/addons/)
 [![GitHub](https://img.shields.io/github/license/Jster42/dispatcharr-ha-addon.svg)](LICENSE)
+[![Add this repository to my Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FJster42%2Fdispatcharr-ha-addon)
 
-This repository contains a native Home Assistant add-on for [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr), an open-source IPTV and stream management companion.
+Home Assistant add-on for [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr), an open-source IPTV and stream management companion.
 
-## Quick Start
+This build runs **Dispatcharr 0.30.0**.
 
-1. In Home Assistant, go to **Settings** → **Add-ons** → **Add-on Store**
-2. Click the **⋮** menu → **Repositories**
-3. Add this repository: `https://github.com/Jster42/dispatcharr-ha-addon`
-4. Install the **Dispatcharr** add-on
-5. Configure and start
-6. Access at `http://homeassistant.local:9191`
+## Install
 
-## Features
-
-- ✅ **Direct Port Access**: Access Dispatcharr via port 9191
-- ✅ **Hardware Acceleration**: Automatic GPU passthrough for Intel/AMD VAAPI/QSV transcoding
-- ✅ **Dev Branch**: Runs the latest development branch with all-in-one Redis/Celery/Gunicorn stack
-- ✅ **Persistent Storage**: All data stored in Home Assistant's persistent storage
-- ✅ **Easy Configuration**: Configure via Home Assistant add-on options
+1. In Home Assistant, open **Settings → Add-ons → Add-on Store**.
+2. Open the **⋮** menu → **Repositories**, and add `https://github.com/Jster42/dispatcharr-ha-addon`.
+3. Install **Dispatcharr**, set the timezone, and start it.
+4. Open `http://homeassistant.local:9191` (or **Open Web UI**) and finish Dispatcharr's first-run setup.
 
 ## Documentation
 
-- **[Add-on README](dispatcharr/README.md)**: Detailed installation instructions, configuration options, GPU acceleration details, and troubleshooting
-- **[NAS Mounting Guide](docs/MOUNTING_NAS.md)**: Comprehensive guide for mounting network storage (NAS) shares in Home Assistant for use with Dispatcharr
+- [Add-on documentation](dispatcharr/DOCS.md) — options, GPU passthrough, troubleshooting
+- [Network storage](docs/MOUNTING_NAS.md) — mount a NAS with Home Assistant Storage and use it in Dispatcharr
 
 ## Support
 
-- **Issues**: Report add-on specific issues in this repository's [Issues](https://github.com/Jster42/dispatcharr-ha-addon/issues) section
-- **Dispatcharr**: For Dispatcharr-specific questions, see the [Dispatcharr repository](https://github.com/Dispatcharr/Dispatcharr)
+- Add-on issues: [Issues](https://github.com/Jster42/dispatcharr-ha-addon/issues)
+- Dispatcharr: [Dispatcharr repository](https://github.com/Dispatcharr/Dispatcharr)
 
 ## License
 
-This add-on is provided as-is. Dispatcharr itself maintains its own license.
+This add-on is MIT licensed. Dispatcharr has its own license.

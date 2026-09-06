@@ -1,239 +1,57 @@
-# Mounting NAS Shares in Home Assistant
+# Network storage for Dispatcharr
 
-This guide explains how to mount network storage (NAS) shares in Home Assistant so they're accessible to addons like Dispatcharr.
+Use Home Assistant's built-in Network Storage. Do not edit `/etc/fstab`, mount from a `shell_command`, or `docker exec` into the add-on.
 
-## Method 1: Using Samba/CIFS Add-on (Easiest - Recommended)
+Official reference: [Home Assistant common tasks — Network storage](https://www.home-assistant.io/common-tasks/os/#network-storage).
 
-The Samba/CIFS add-on is the easiest way to mount network shares in Home Assistant.
+## Add a share
 
-### Installation
+1. Go to **Settings → System → Storage**.
+2. Select **Add network storage**.
+3. Fill in the server, share, and credentials.
+4. Set **Usage** to **Media**.
+5. Select **Connect**.
 
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Search for **"Samba share"** or **"CIFS"**
-3. Install the add-on (there may be multiple options - choose one that supports mounting)
+Home Assistant creates a directory named after the share under `/media`. This add-on maps `media` read-write, so the same path is available inside Dispatcharr.
 
-### Configuration
+Example: a share named `nas_data` is `/media/nas_data` on the host and `/media/nas_data` in the add-on.
 
-1. Open the Samba/CIFS add-on configuration
-2. Configure your NAS connection:
-   - **Server**: Your NAS IP address (e.g., `192.168.1.100`)
-   - **Share**: Share name (e.g., `media`, `videos`, `storage`)
-   - **Username**: NAS username
-   - **Password**: NAS password
-   - **Workgroup**: Usually `WORKGROUP` (default)
-   - **Mount point**: `/media/nas` or `/media/dispatcharr` (where you want it mounted)
+## Use the share in Dispatcharr
 
-3. **Start** the add-on
+By default, Dispatcharr keeps recordings, EPG files, and logos in `/data`, which is backed up with the add-on.
 
-4. Verify the mount:
-   ```bash
-   # SSH into Home Assistant
-   ssh hassio@homeassistant.local
-   
-   # Check if mounted
-   ls -la /media/nas
-   # or
-   ls -la /media/dispatcharr
-   ```
+To put those directories on the NAS:
 
-## Method 2: Manual Mount via SSH (Advanced)
+1. Open **Settings → Add-ons → Dispatcharr → Configuration**.
+2. Set **NAS path** to the media mount, for example `/media/nas_data`.
+3. Enable **NAS symlinks**.
+4. Save and restart the add-on.
 
-If you prefer manual control or need NFS support:
+The add-on creates `/media/<name>/dispatcharr/{recordings,epgs,logos}` and points `/data/recordings`, `/data/epgs`, and `/data/logos` at those folders. Existing local data is moved into the share when the destination is empty, or left in a `/data/<name>.backup.<timestamp>` directory if the share already has files.
 
-### Step 1: Enable SSH in Home Assistant
+Files on the NAS are **not** included in Home Assistant add-on backups. Back up that share separately.
 
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Install **"Terminal & SSH"** add-on (or "SSH & Web Terminal")
-3. Configure and start it
+## Requirements
 
-### Step 2: SSH into Home Assistant
-
-```bash
-ssh hassio@homeassistant.local
-# or
-ssh root@homeassistant.local
-```
-
-### Step 3: Create Mount Point
-
-```bash
-sudo mkdir -p /media/nas
-# or for Dispatcharr specifically
-sudo mkdir -p /media/dispatcharr
-```
-
-### Step 4: Install Required Tools
-
-**For CIFS/Samba:**
-```bash
-# On Home Assistant OS (HassOS)
-# CIFS support is usually already available
-# If not, you may need to use an add-on
-
-# On Home Assistant Supervised (Docker)
-apk add cifs-utils  # Alpine-based
-# or
-apt-get install cifs-utils  # Debian-based
-```
-
-**For NFS:**
-```bash
-# On Home Assistant OS
-# NFS support is usually already available
-
-# On Home Assistant Supervised
-apk add nfs-utils  # Alpine-based
-# or
-apt-get install nfs-common  # Debian-based
-```
-
-### Step 5: Mount the Share
-
-**For Samba/CIFS:**
-```bash
-sudo mount -t cifs //NAS_IP/share_name /media/nas \
-  -o username=your_username,password=your_password,uid=1000,gid=1000,iocharset=utf8
-```
-
-**For NFS:**
-```bash
-sudo mount -t nfs4 NAS_IP:/share_name /media/nas \
-  -o rw,noatime,soft,timeo=30
-```
-
-Replace:
-- `NAS_IP`: Your NAS IP address (e.g., `192.168.1.100`)
-- `share_name`: Your share name (e.g., `media`, `videos`)
-- `your_username`: Your NAS username
-- `your_password`: Your NAS password
-
-### Step 6: Make Mount Persistent
-
-To make the mount survive reboots, add it to `/etc/fstab`:
-
-**For CIFS:**
-```bash
-sudo nano /etc/fstab
-```
-
-Add this line:
-```
-//NAS_IP/share_name /media/nas cifs username=your_username,password=your_password,uid=1000,gid=1000,iocharset=utf8,file_mode=0777,dir_mode=0777 0 0
-```
-
-**For NFS:**
-```
-NAS_IP:/share_name /media/nas nfs4 rw,noatime,soft,timeo=30 0 0
-```
-
-**Note:** On Home Assistant OS, `/etc/fstab` changes may not persist across updates. Consider using an add-on or automation instead.
-
-## Method 3: Using Shell Command + Automation
-
-Create a persistent mount using Home Assistant's shell_command and automation:
-
-### Step 1: Add to configuration.yaml
-
-```yaml
-shell_command:
-  mount_nas: |
-    mkdir -p /media/nas
-    mount -t cifs //NAS_IP/share_name /media/nas \
-      -o username=your_username,password=your_password,uid=1000,gid=1000,iocharset=utf8
-```
-
-### Step 2: Create Automation
-
-```yaml
-automation:
-  - alias: "Mount NAS Share on Startup"
-    trigger:
-      - platform: homeassistant
-        event: start
-    action:
-      - service: shell_command.mount_nas
-```
-
-### Step 3: Restart Home Assistant
-
-After adding the configuration, restart Home Assistant.
-
-## Method 4: Using Network Storage Add-on
-
-Some Home Assistant installations have dedicated "Network Storage" add-ons:
-
-1. Check **Settings** → **Add-ons** → **Add-on Store**
-2. Search for "Network Storage" or "NFS" or "CIFS"
-3. Install and configure as per the add-on's instructions
-
-## Verifying the Mount
-
-After mounting, verify it's working:
-
-```bash
-# Check if mounted
-mount | grep /media/nas
-
-# List contents
-ls -la /media/nas
-
-# Check disk space
-df -h /media/nas
-```
+- Home Assistant OS 10.2 or newer (Network Storage is built in).
+- CIFS/SMB 2.1 or newer, or NFS, as supported by the Storage UI.
+- This add-on must be running so it can see `/media`.
 
 ## Troubleshooting
 
-### Mount Fails with "Permission Denied"
+**Share not visible in the add-on**
 
-- Check NAS share permissions
-- Verify username/password
-- Try adding `uid=1000,gid=1000` to mount options
-- For CIFS, try `file_mode=0777,dir_mode=0777`
+- Confirm the storage entry shows as connected under **Settings → System → Storage**.
+- Confirm usage is **Media**, not Backup.
+- Restart Dispatcharr after the share is connected.
+- Check the add-on log for `nas_path` warnings.
 
-### Mount Doesn't Persist After Reboot
+**Permission errors**
 
-- On Home Assistant OS, `/etc/fstab` changes may not persist
-- Use an add-on (Method 1) or automation (Method 3) instead
-- Check if the mount point directory exists after reboot
+The share must be writable by the add-on. Adjust NAS share permissions, or reconnect the storage entry. Dispatcharr also documents `PUID`/`PGID` style ownership for external mounts in its own logs.
 
-### "Command not found" Errors
+**Do not**
 
-- Install required packages (cifs-utils or nfs-utils)
-- On Home Assistant OS, you may need to use add-ons instead of manual mounting
-
-### Connection Timeout
-
-- Verify NAS IP address is correct
-- Check network connectivity: `ping NAS_IP`
-- Verify NAS share is accessible from other devices
-- Check firewall rules
-
-## Using the Mounted Share in Addons
-
-Once mounted at the Home Assistant host level (e.g., `/media/nas`), it will be accessible to addons that have the appropriate mount points configured.
-
-For Dispatcharr specifically:
-- The addon has `map: - media:rw` which maps `/media` from the host
-- So a share mounted at `/media/nas` on the host will be at `/media/nas` in the container
-- Configure Dispatcharr to use `/media/nas` for media storage
-
-## Security Notes
-
-- **Password in fstab**: Consider using a credentials file instead:
-  ```bash
-  # Create credentials file
-  sudo nano /etc/samba/credentials
-  # Add:
-  username=your_username
-  password=your_password
-  
-  # Make it readable only by root
-  sudo chmod 600 /etc/samba/credentials
-  
-  # Use in fstab:
-  //NAS_IP/share_name /media/nas cifs credentials=/etc/samba/credentials,uid=1000,gid=1000 0 0
-  ```
-
-- **NFS Security**: Consider using NFSv4 with Kerberos for better security
-- **Network Security**: Ensure your NAS and Home Assistant are on a trusted network
-
+- Install the Samba *share* add-on to pull a NAS in. That add-on exports Home Assistant folders outbound.
+- Mount from Home Assistant Core `shell_command` automations. Those run in the Core container, not on the host.
+- Rely on `/etc/fstab` on Home Assistant OS. Those changes do not persist.

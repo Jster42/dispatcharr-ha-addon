@@ -1,0 +1,21 @@
+configuration:
+  username:
+    name: Username
+    description: Suggested Dispatcharr admin username. First-time account creation still happens in the Dispatcharr web UI.
+  password:
+    name: Password
+    description: Optional password passed into the container. Leave empty to set the admin account in Dispatcharr after first start.
+  epg_url:
+    name: EPG URL
+    description: Optional XMLTV EPG source URL.
+  timezone:
+    name: Timezone
+    description: IANA timezone used by the container (for example UTC or America/New_York).
+  nas_symlinks:
+    name: NAS symlinks
+    description: Redirect recordings, EPG files, and logos from /data to a Home Assistant media mount.
+  nas_path:
+    name: NAS path
+    description: Container path of the media mount created under Settings → System → Storage, for example /media/nas_data.
+network:
+  9191/TCP: Dispatcharr web interface

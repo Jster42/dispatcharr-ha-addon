@@ -1,11 +1,21 @@
-FROM ghcr.io/dispatcharr/dispatcharr:dev
+ARG BUILD_VERSION
+ARG BUILD_ARCH
 
-# Add s6 run/init scripts to wire add-on options and supervision
-COPY rootfs/ /
+FROM ghcr.io/dispatcharr/dispatcharr:0.30.0
 
-# Override the base image's ENTRYPOINT to let s6 manage the service
-# Home Assistant uses s6 as init system, which will execute /etc/services.d/dispatcharr/run
-# Our run script will then call the entrypoint with proper environment variables
-ENTRYPOINT ["/init"]
+ARG BUILD_VERSION
+ARG BUILD_ARCH
 
-EXPOSE 9191
+COPY run.sh /run.sh
+RUN chmod a+x /run.sh
+
+LABEL \
+  io.hass.name="Dispatcharr" \
+  io.hass.description="IPTV and stream management companion" \
+  io.hass.version="${BUILD_VERSION}" \
+  io.hass.type="addon" \
+  io.hass.arch="${BUILD_ARCH}"
+
+# Upstream image already defines ENTRYPOINT; replace it so add-on options
+# are applied before Dispatcharr's own entrypoint runs.
+ENTRYPOINT ["/run.sh"]

@@ -1,110 +1,35 @@
 # Changelog
 
-All notable changes to this add-on will be documented in this file.
+All notable changes to this add-on are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-06
+
+### Changed
+- Pin the container image to Dispatcharr 0.30.0 instead of the floating `dev` tag.
+- Start Dispatcharr through `/run.sh` and the upstream entrypoint. The add-on no longer assumes s6-overlay is present in the upstream image.
+- Map only `media` (read-write). The Home Assistant `config` directory is no longer mounted.
+- Use Docker init, a 180 second start/stop timeout, and cold backups so Postgres is stopped before a backup.
+- Default username is `admin`. The password field is optional and masked in the UI.
+- Timezone is taken from the add-on option (`TZ` / `DISPATCHARR_TIME_ZONE`), not from an invalid `!secret` environment entry.
+
+### Added
+- Store documentation (`DOCS.md`), translations, icon, and logo.
+- `webui` so **Open Web UI** works without Ingress.
+- Optional `nas_path` for Home Assistant Network Storage mounts.
+- `video: true` in addition to `/dev/dri` for GPU devices.
+
+### Fixed
+- NAS symlink setup no longer deletes data directories with `rm -rf` if a backup move fails.
+- NAS documentation now uses **Settings → System → Storage** instead of Samba share, `fstab`, or `docker exec`.
+
+### Removed
+- s6 `cont-init.d` / `services.d` scripts and the `/init` entrypoint override.
+- Writing the admin password to `/data/dispatcharr.env`.
+- Automatic changelog/version bumping on every commit.
+
 ## [1.0.68-dev] - 2026-06-18
 
-### Changed
-- latest update
-
-## [1.0.65-dev] - 2026-06-18
-
-### Added
-- add automatic NAS symlink support
-
-## [1.0.63-dev] - 2025-11-16
-
-### Changed
-- confirm /media/nas_data is already accessible
-
-## [1.0.62-dev] - 2025-11-16
-
-### Changed
-- update NAS mount guide for Home Assistant media source
-
-## [1.0.61-dev] - 2025-11-16
-
-### Changed
-- add guide for using existing NAS mount with Dispatcharr
-
-## [1.0.60-dev] - 2025-11-16
-
-### Changed
-- add reference to NAS mounting guide in main README
-
-## [1.0.59-dev] - 2025-11-16
-
-### Changed
-- add comprehensive NAS mounting guide
-
-## [1.0.58-dev] - 2025-11-16
-
-### Changed
-- add NAS share mounting instructions
-
-## [1.0.57-dev] - 2025-11-16
-
-### Added
-- auto-update CHANGELOG on every commit
-
-## [1.0.56-dev] - 2025-11-16
-
-### Fixed
-- rewrite CHANGELOG update with macOS-compatible approach
-
-## [1.0.55-dev] - 2025-11-16
-
-### Fixed
-- improve CHANGELOG update logic for macOS compatibility
-
-## [1.0.3-dev] - 2025-11-16
-
-### Changed
-- Updated changelog documentation
-
-## [1.0.2-dev] - 2025-11-16
-
-### Fixed
-- Made git pre-commit hook executable so version auto-increment works on commits
-- Made all tool scripts executable for proper functionality
-
-### Changed
-- Updated addon run script and README documentation
-
-## [1.0.1-dev] - 2025-11-16
-
-### Added
-- Entrypoint discovery debug logging to identify correct entrypoint path
-- Comprehensive Ingress troubleshooting documentation
-- GPU acceleration documentation with DRI device access warnings explained
-
-### Fixed
-- Entrypoint path priority order (entrypoint.aio.sh > entrypoint.sh > /app/docker/entrypoint.sh)
-- Explicit GUNICORN_PORT environment variable for Ingress compatibility
-
-### Changed
-- Improved entrypoint selection logic with better error messages
-
-## [1.0.0-dev] - 2025-11-16
-
-### Added
-- Initial release of Dispatcharr Home Assistant Add-on
-- Ingress support for direct access from HA sidebar
-- Hardware acceleration support (Intel/AMD GPU passthrough via /dev/dri)
-- Automatic environment configuration (DISPATCHARR_ENV=aio, Redis, Celery, Gunicorn)
-- Configuration options: username, password, epg_url, timezone
-- Persistent storage via Home Assistant /data directory
-- Support for dispatcharr/dispatcharr:dev image
-- Comprehensive README with installation, configuration, and troubleshooting guides
-- Automatic version bumping via git pre-commit hook
-- GPU detection and VAAPI/QSV acceleration support
-
-### Technical Details
-- Base image: ghcr.io/dispatcharr/dispatcharr:dev
-- Port: 9191 (Ingress)
-- Architecture: amd64, aarch64
-- Services: Redis, Celery worker, Gunicorn (all-in-one mode)
-
+Historical development builds through 1.0.68-dev used the Dispatcharr `dev` image, s6-style init scripts, and a host port mapping on 9191. See git history for those snapshots.
