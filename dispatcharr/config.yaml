@@ -1,5 +1,5 @@
 name: Dispatcharr
-version: "1.1.0"
+version: "1.1.1"
 slug: dispatcharr
 description: Open-source IPTV and stream management companion with EPG data, channel mapping, and hardware-accelerated transcoding support
 url: https://github.com/Jster42/dispatcharr-ha-addon
@@ -17,14 +17,15 @@ map:
   - type: media
     read_only: false
 options:
-  username: admin
+  username: jeff
   password: ""
+  epg_url: https://epg.iptv.cat/epg.xml
   timezone: UTC
   nas_symlinks: false
 schema:
   username: str
   password: "password?"
-  epg_url: "url?"
+  epg_url: url
   timezone: str
   nas_symlinks: bool
   nas_path: "str?"

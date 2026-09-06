@@ -1,13 +1,13 @@
 configuration:
   username:
     name: Username
-    description: Suggested Dispatcharr admin username. First-time account creation still happens in the Dispatcharr web UI.
+    description: Dispatcharr admin username passed into the container.
   password:
     name: Password
-    description: Optional password passed into the container. Leave empty to set the admin account in Dispatcharr after first start.
+    description: Dispatcharr admin password. Set this in the add-on UI; it is masked and is not stored in the add-on repository.
   epg_url:
     name: EPG URL
-    description: Optional XMLTV EPG source URL.
+    description: XMLTV EPG source URL.
   timezone:
     name: Timezone
     description: IANA timezone used by the container (for example UTC or America/New_York).

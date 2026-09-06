@@ -17,9 +17,9 @@ This add-on runs the pinned Dispatcharr **0.30.0** all-in-one image (Redis, Cele
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `username` | Suggested admin username (passed into the container) | `admin` |
-| `password` | Optional password (masked in the UI). Leave empty to create the account in Dispatcharr. | _(empty)_ |
-| `epg_url` | Optional XMLTV EPG source URL | _(unset)_ |
+| `username` | Dispatcharr admin username (passed into the container) | `jeff` |
+| `password` | Admin password (masked in the UI). Set this in the add-on Configuration panel; it is not stored in the repository. | _(empty)_ |
+| `epg_url` | XMLTV EPG source URL | `https://epg.iptv.cat/epg.xml` |
 | `timezone` | IANA timezone, for example `UTC` or `America/New_York` | `UTC` |
 | `nas_symlinks` | Redirect recordings, EPG files, and logos onto a media mount | `false` |
 | `nas_path` | Media mount path inside the container, for example `/media/nas_data` | _(unset)_ |
