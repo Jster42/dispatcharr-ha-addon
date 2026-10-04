@@ -1,7 +1,7 @@
 ARG BUILD_VERSION
 ARG BUILD_ARCH
 
-FROM ghcr.io/dispatcharr/dispatcharr:0.30.0
+FROM ghcr.io/dispatcharr/dispatcharr:0.31.0
 
 ARG BUILD_VERSION
 ARG BUILD_ARCH
