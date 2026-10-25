@@ -6,7 +6,7 @@
 
 Home Assistant add-on for [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr), an open-source IPTV and stream management companion.
 
-This build runs **Dispatcharr 0.31.0**.
+This build runs **Dispatcharr 0.33.0**.
 
 ## Install
 

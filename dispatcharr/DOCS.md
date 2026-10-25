@@ -2,7 +2,7 @@
 
 Dispatcharr is an open-source IPTV and stream management companion for channels, EPG data, and stream mappings.
 
-This add-on runs the pinned Dispatcharr **0.31.0** all-in-one image (Redis, Celery, nginx, and uWSGI).
+This add-on runs the pinned Dispatcharr **0.33.0** all-in-one image (Redis, Celery, nginx, and uWSGI).
 
 ## Installation
 
@@ -77,7 +77,7 @@ Files on a NAS mount are **not** part of the add-on backup. Keep a separate copy
 ### Add-on will not start
 
 1. Read the add-on logs.
-2. Confirm the Supervisor can pull `ghcr.io/dispatcharr/dispatcharr:0.31.0`.
+2. Confirm the Supervisor can pull `ghcr.io/dispatcharr/dispatcharr:0.33.0`.
 3. If you enabled NAS symlinks, confirm `nas_path` exists (the Storage share is connected).
 
 ## Support
